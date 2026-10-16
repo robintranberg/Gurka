@@ -20,6 +20,7 @@ metadata:
   - CF-Connecting-IP används bara när Gurka:Cloudflare=true. Genom Codespaces kommer trafiken också från loopback, och där kan headern förfalskas.
   - Taken per IP använder Net.Key (IPv6 grupperas per /64).
   - Röktest: Nodes WebSocket tar `{headers}` som andra argument.
+  - Verifierat i ett riktigt codespace 2026-10-16 (Team Lead): Codespaces-proxyn ERSÄTTER X-Forwarded-For med klientens riktiga IP (en förfalskad header tas bort). Den skickar också X-Real-IP och X-Forwarded-Proto/Host. Taken per IP gäller alltså per riktig klient, och Net.Proxies behöver ingen extra betrodd hop för Codespaces.
 - Spelreglerna i Game.cs är facit. Användaren har sagt att reglerna inte får ändras på eget initiativ (2026-10-16).
 
 **Why:** De här kostade tid eller gav tysta fel under refaktoreringen 2026-10-16.
