@@ -170,7 +170,7 @@ public class Flood : IHubFilter
             B[key] = (n - 1, now); return true;
         }
     }
-    public static string Ip(HubCallerContext c) => c.GetHttpContext()?.Connection.RemoteIpAddress?.ToString() ?? "?";
+    public static string Ip(HubCallerContext c) => Net.Key(c.GetHttpContext()?.Connection.RemoteIpAddress); // efter UseForwardedHeaders
     public async ValueTask<object?> InvokeMethodAsync(HubInvocationContext c, Func<HubInvocationContext, ValueTask<object?>> next)
     {
         string m = c.HubMethodName, id = c.Context.ConnectionId, ip = "ip:" + Ip(c.Context);

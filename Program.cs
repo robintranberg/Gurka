@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.SignalR;
 
 var b = WebApplication.CreateBuilder(args);
@@ -15,7 +16,12 @@ b.Services.AddSignalR(o =>
     o.AddFilter(new Flood());
 });
 b.Services.AddHealthChecks();
+b.Services.Configure<ForwardedHeadersOptions>(Net.Proxies);
 var app = b.Build();
+
+// bakom Codespaces/Cloudflare: klientens IP och https från betrodda proxyer (se Net.cs). Måste ligga först.
+app.Use(Net.Cloudflare(app.Configuration.GetValue<bool>("Gurka:Cloudflare")));
+app.UseForwardedHeaders();
 
 // säkerhetsheaders; skript och stil bara från egna filer (klienten sätter stil via CSSOM, inga style-attribut)
 app.Use(async (ctx, next) =>

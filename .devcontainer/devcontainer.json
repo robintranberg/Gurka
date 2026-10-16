@@ -1,0 +1,12 @@
+{
+  "name": "Gurka",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:8.0",
+  "forwardPorts": [5000],
+  "portsAttributes": {
+    "5000": { "label": "Gurka", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "dotnet restore Gurka.sln",
+  "customizations": {
+    "vscode": { "extensions": ["ms-dotnettools.csharp"] }
+  }
+}

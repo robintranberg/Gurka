@@ -16,6 +16,10 @@ metadata:
 - `o.AddFilter(...)` på HubOptions kräver `using Microsoft.AspNetCore.SignalR;` i Program.cs. Det namnrummet ingår inte i implicit usings.
 - Bygg till scratch (`dotnet build -o <scratch>/build`) och starta med `dotnet Gurka.dll --contentRoot C:/projects_dotnetcloud/Gurka`. Röktesta med Node 22 (inbyggd WebSocket) och SignalR JSON-protokollet direkt, utan npm: POST /hub/negotiate?negotiateVersion=1, sedan ws://...?id=connectionToken, handshake `{"protocol":"json","version":1}\x1e`.
 - Regel som användaren bestämt 2026-10-16: om flera spelare i sista sticket delar den lägsta valören (min av varje spelares högsta kort) blir det oavgjort. Då gäller Winner = Gurka = -1, Points = 0 och inga poängändringar. Kod som läser Winner eller Gurka måste därför klara -1.
+- Spelet körs även publikt via Codespaces och Cloudflare-tunnel (2026-10-16). Klientens IP räknas fram i Net.cs, och UseForwardedHeaders litar bara på loopback och privata nät. Det betyder att en enhet i LAN:et kan förfalska X-Forwarded-For. Det är accepterat, eftersom LAN:et räknas som betrott.
+  - CF-Connecting-IP används bara när Gurka:Cloudflare=true. Genom Codespaces kommer trafiken också från loopback, och där kan headern förfalskas.
+  - Taken per IP använder Net.Key (IPv6 grupperas per /64).
+  - Röktest: Nodes WebSocket tar `{headers}` som andra argument.
 - Spelreglerna i Game.cs är facit. Användaren har sagt att reglerna inte får ändras på eget initiativ (2026-10-16).
 
 **Why:** De här kostade tid eller gav tysta fel under refaktoreringen 2026-10-16.
