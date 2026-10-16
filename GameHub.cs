@@ -19,7 +19,8 @@ public class GameHub : Hub
     static string Phase = "lobby"; // lobby, exchange, respond, play, over
     static bool Done, RespFree;
     static long Ver; // versionsnummer så klienten kan ignorera tillstånd som kommer i fel ordning
-    static int Starter, Turn, Count, Top = -1, TopR, Gurka = -1, Winner = -1, Points, ExN;
+    static int Starter, Turn, Count, Top = -1, Gurka = -1, Winner = -1, Points, ExN;
+    static List<int> TopRs = new(); // korten som ligger högst i sticket, sorterade stigande – slås kort för kort
 
     static IEnumerable<int> Active => Enumerable.Range(0, 4).Where(i => Seats[i] != null);
     static int Next(int s) { do s = (s + 1) % 4; while (Seats[s] == null); return s; }
@@ -173,6 +174,7 @@ public class GameHub : Hub
         if (idx == null || idx.Length == 0 || idx.Distinct().Count() != idx.Length || idx.Any(i => i < 0 || i >= h.Count)) return "Ogiltigt val.";
         var ch = idx.Select(i => h[i]).ToList();
         bool lead = Trick.Count == 0 || Done, sak = false;
+        var pr = ch.Select(c => c.R).OrderBy(r => r).ToList();
         if (lead)
         {
             if (!(ch.Count == 1 || (ch.Count == 2 && ch[0].R == ch[1].R))) return "Spela ut ett kort eller två lika.";
@@ -180,20 +182,19 @@ public class GameHub : Hub
         else
         {
             if (ch.Count != Count) return $"Du måste lägga {Count} kort.";
-            bool beats = ch.All(c => c.R == ch[0].R) && ch[0].R >= TopR;
-            if (!beats)
+            // varje kort (lägst mot lägst) måste vara lika/högre än motsvarande kort i sticket
+            bool Beats(IEnumerable<int> cs) => cs.Select((r, i) => r >= TopRs[i]).All(b => b);
+            if (!Beats(pr))
             {
-                var low = h.Select(c => c.R).OrderBy(r => r).Take(Count);
-                if (!low.SequenceEqual(ch.Select(c => c.R).OrderBy(r => r)))
-                {
-                    bool can = Count == 1 ? h.Any(c => c.R >= TopR) : h.GroupBy(c => c.R).Any(g => g.Key >= TopR && g.Count() >= 2);
-                    return can ? "Slå med lika/högre kort, eller saka ditt lägsta." : "Du kan inte slå – du måste saka ditt lägsta kort.";
-                }
+                // saka: de lägsta valda korten är dina lägsta, resten slår kort för kort (t.ex. slå ett + saka ett)
+                var low = h.Select(c => c.R).OrderBy(r => r).ToList();
+                if (!Enumerable.Range(1, Count).Any(j => pr.Take(j).SequenceEqual(low.Take(j)) && Beats(pr.Skip(j))))
+                    return h.Any(c => c.R >= TopRs[0]) ? "Slå kort för kort med lika/högre kort, eller saka ditt lägsta." : "Du kan inte slå – du måste saka ditt lägsta kort.";
                 sak = true;
             }
         }
-        if (lead) { if (Trick.Count > 0) Past.Add(Trick.ToList()); Trick.Clear(); Done = false; Count = ch.Count; Top = m; TopR = ch[0].R; }
-        else if (!sak) { Top = m; TopR = ch[0].R; }
+        if (lead) { if (Trick.Count > 0) Past.Add(Trick.ToList()); Trick.Clear(); Done = false; Count = ch.Count; Top = m; TopRs = pr; }
+        else if (!sak) { Top = m; TopRs = pr; }
         foreach (var i in idx.OrderByDescending(i => i)) h.RemoveAt(i);
         Trick.Add(new Pay { Seat = m, Cards = ch, Sak = sak });
         if (Trick.Count == Active.Count()) { Done = true; if (h.Count == 0) Finish(); else Turn = Top; }

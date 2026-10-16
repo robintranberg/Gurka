@@ -153,10 +153,10 @@ function acts(){
  else if(s.phase==='respond'&&my&&s.free)a=freeResp(s);
  else if(s.phase==='respond'&&my)a=`<p>${esc(nm(s.starter))} bytte inga kort. Kasta alla och få 7 nya?</p><button class="pri" onclick="call('Respond',true)">Kasta alla</button><button onclick="call('Respond',false)">Behåll</button>`;
  else if(s.phase==='play'&&my){
-  const L=lead(),tp=s.trick.find(p=>p.seat===s.top),tr=!L&&tp?tp.cards[0].r:0;
-  const can=L||(s.count==1?h.some(c=>c.r>=tr):Object.values(h.reduce((o,c)=>(o[c.r]=(o[c.r]||0)+(c.r>=tr?1:0),o),{})).some(n=>n>=2));
+  const L=lead(),tp=s.trick.find(p=>p.seat===s.top),tr=!L&&tp?tp.cards.map(c=>c.r).sort((x,y)=>x-y):[0];
+  const can=L||h.some(c=>c.r>=tr[0]);
   const rs=[...sel].map(i=>h[i].r),ok=L?(rs.length==1||(rs.length==2&&rs[0]==rs[1])):rs.length==s.count;
-  a=(L?'':`<p>${can?`Lägg ${s.count} kort ≥ ${RK(tr)} för att slå, annars saka.`:'Du kan inte slå – du måste saka ditt lägsta.'}</p>`)+
+  a=(L?'':`<p>${can?(s.count==1?`Lägg ett kort ≥ ${RK(tr[0])} för att slå, annars saka.`:`Slå kort för kort (≥ ${tr.map(RK).join(' och ≥ ')}), eller slå ett och saka ditt lägsta, eller saka två.`):'Du kan inte slå – du måste saka ditt lägsta.'}</p>`)+
    (can?`<button class="pri" ${ok?'':'disabled'} onclick="P()">Spela valda</button>`:'')+(L?'':`<button ${can?'':'class="pri"'} onclick="K()">Saka (lägsta)</button>`)}
  else a=`<p>${s.turn>=0?esc(nm(s.turn))+' är på tur…':''}</p>`;
  $('actions').innerHTML=a;
