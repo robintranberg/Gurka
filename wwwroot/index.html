@@ -46,6 +46,7 @@ input{background:rgba(255,255,255,.92);color:var(--ink)}
 #hand .card{margin-left:-14px;cursor:pointer}#hand .card:first-child{margin-left:0}
 #hand .card.sel{transform:translateY(-16px);box-shadow:0 0 0 3px var(--brine),0 6px 12px rgba(0,0,0,.4)}
 .card.off{opacity:.45;cursor:not-allowed}
+.card.hi{box-shadow:0 0 0 3px var(--brine),0 0 12px var(--brine)}
 .card.md{width:46px;height:66px}.card.md b{font-size:18px}.card.md i{font-size:19px}
 .card.sm{width:40px;height:56px}.card.sm b{font-size:15px}.card.sm i{font-size:16px}
 .deal{animation:deal .45s both cubic-bezier(.2,.8,.3,1.2);animation-delay:var(--d)}
@@ -64,9 +65,10 @@ input{background:rgba(255,255,255,.92);color:var(--ink)}
 @media(max-width:800px){
 #app{grid-template-columns:1fr}header{grid-column:1;padding-bottom:4px}
 main{padding:0 8px}
-.rim{padding:7px;border-radius:30% / 22%}.felt{border-radius:28% / 20%;padding:6px 8px;grid-template-columns:minmax(64px,1fr) 3fr minmax(64px,1fr)}
-.plate{min-width:64px;max-width:96px;padding:4px 6px;font-size:13px}#p-left .backs,#p-right .backs{display:none}
-#trick{padding:0 40px}.card.md{width:38px;height:54px}.card.md b{font-size:15px}.card.md i{font-size:16px}.cs .card+.card{margin-left:-16px}
+.rim{padding:7px;border-radius:28px}.felt{border-radius:22px;padding:6px 8px;grid-template-columns:1fr 1fr 1fr;grid-template-areas:"left top right" "mid mid mid" ". bottom ."}
+#p-left{grid-area:left;justify-self:center;align-self:start}#p-right{grid-area:right;justify-self:center;align-self:start} /* motspelarna på rad överst så korten på bordet syns */
+.plate{min-width:64px;max-width:96px;padding:4px 6px;font-size:13px}
+#trick{padding:0}.card.md{width:38px;height:54px}.card.md b{font-size:15px}.card.md i{font-size:16px}.cs .card+.card{margin-left:-16px}
 #msg{font-size:15px}
 .card{width:54px;height:80px}.card b{font-size:20px}.card i{font-size:22px}#hand .card{margin-left:-20px}.card.sm{width:34px;height:48px}
 #chat{position:fixed;left:0;right:0;bottom:0;margin:0;height:60dvh;border-radius:14px 14px 0 0;transform:translateY(100%);transition:transform .25s;background:#173325;z-index:5}#chat.open{transform:none}
@@ -133,11 +135,11 @@ function render(){
  $('status').textContent=({lobby:`${cnt}/4 spelare vid bordet`,exchange:`${nm(s.starter)} har högst kort och börjar`,respond:`${s.turn>=0?nm(s.turn):''} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`,play:`${nm(s.turn)} är på tur`,over:'Omgången är slut'})[s.phase]||'';
  const pl={top:'',left:'',right:'',bottom:''};
  s.seats.forEach((p,i)=>{if(!p)return;const rv=s.reveal.find(r=>r.seat===i);
-  pl[pos[i]]=`<div class="plate ${s.turn===i?'turn':''} ${i===s.you?'you':''}"><div class="pn">${esc(p.name)}${i===s.you?' (du)':''}${i===s.starter&&s.phase!=='lobby'?' ★':''}</div><div class="pc">${p.score} poäng</div><div class="pc">${p.n} kort</div><div class="backs">${rv?card(rv,'sm in'):'<span class="back"></span>'.repeat(p.n)}</div></div>`});
+  pl[pos[i]]=`<div class="plate ${s.turn===i?'turn':''} ${i===s.you?'you':''}"><div class="pn">${esc(p.name)}${i===s.you?' (du)':''}${i===s.starter&&s.phase!=='lobby'?' ★':''}</div><div class="pc">${p.score} poäng</div><div class="pc">${p.n} kort</div><div class="backs">${rv?card(rv,'sm in'+(i===s.starter?' hi':'')):'<span class="back"></span>'.repeat(p.n)}</div></div>`});
  for(const k in pl)$('p-'+k).innerHTML=pl[k];
  const t=s.trick;if(t.length<pt)pt=0;
  $('trick').innerHTML=t.map((p,k)=>`<div class="play ${s.done&&p.seat===s.top?'won':''}" data-p="${pos[p.seat]||'bottom'}"><div class="nm">${esc(nm(p.seat))}</div><div class="cs">${p.cards.map(c=>card(c,'md '+(k>=pt?'in':''))).join('')}</div>${p.sak?'<span class="tag sak">Sakat</span>':p.seat===s.top&&!s.done?'<span class="tag">Högst</span>':''}</div>`).join('')+
-  `<div id="msg">${s.phase==='over'?`🥒 ${esc(nm(s.gurka))} fick gurkan (−${s.points} poäng)<br>🏆 ${esc(nm(s.winner))} vinner (+${s.points} poäng)`:s.phase==='lobby'?'':`<span class="pc">Leken: ${s.deck} kort, slasken: ${s.slask} kort</span>`}</div>`;pt=t.length;
+  `<div id="msg">${s.phase==='over'?`🥒 ${esc(nm(s.gurka))} fick gurkan (−${s.points} poäng)<br>🏆 ${esc(nm(s.winner))} vinner (+${s.points} poäng)`:s.phase==='exchange'?`${esc(nm(s.starter))} fick högst kort och börjar`:s.phase==='respond'&&s.deck<7?`<span class="pc">Leken: ${s.deck} kort, slasken: ${s.slask} kort</span>`:''}</div>`;pt=t.length;
  const pa=$('past');pa.innerHTML=s.past.length?'<span class="pl">Spelade kort</span>'+s.past.map(r=>`<div class="grp">${r.flatMap(p=>p.cards.map(c=>mini(c,p.sak))).join('')}</div>`).join(''):'';
  if(s.past.length!==pp){pa.scrollLeft=pa.scrollWidth;pp=s.past.length}
  $('score').innerHTML='<h2>Poängställning</h2>'+s.seats.filter(x=>x).sort((a,b)=>b.score-a.score).map(p=>`<div class="sc"><span>${esc(p.name)}</span><b>${p.score}</b></div>`).join('');
@@ -150,6 +152,8 @@ function acts(){
   a=(s.phase==='lobby'||s.phase==='over')?(s.seats.every(x=>x)?'<p>Bordet är fullt (4/4). Vänta tills en plats blir ledig.</p>':`<input id="nick" maxlength="14" placeholder="Ditt namn" autocomplete="off"><button class="pri" onclick="J()">Gå med</button>`):'<p>Spelet pågår – du tittar på.</p>'}
  else if(s.phase==='lobby'||s.phase==='over'){const c=s.seats.filter(x=>x).length;
   a=c>1?`<button class="pri" onclick="call('Start')">${s.phase==='over'?'Spela igen':'Starta spelet'}</button>`:'<p>Väntar på fler spelare (minst 2)…</p>'}
+ else if(s.phase==='exchange'&&s.zl.includes(s.you))a=`<p>Inget kort över 10 – Zlatan! Vill du kasta alla och få 7 nya innan bytet?</p><button class="pri" onclick="call('Zlatan',true)">Zlatan</button><button onclick="call('Zlatan',false)">Behåll</button>`;
+ else if(s.phase==='exchange'&&s.zl.length)a=`<p>Väntar på Zlatan-beslut från ${s.zl.map(i=>esc(nm(i))).join(', ')}…</p>`;
  else if(s.phase==='exchange'&&my)a=`<p>Markera de kort du vill byta, eller byt inga.</p><button class="pri" onclick="X()">${sel.size?`Byt ${sel.size} kort`:'Byt inga'}</button>`;
  else if(s.phase==='respond'&&my&&s.free)a=freeResp(s);
  else if(s.phase==='respond'&&my)a=`<p>${esc(nm(s.starter))} bytte inga kort. Kasta alla och få 7 nya?</p><button class="pri" onclick="call('Respond',true)">Kasta alla</button><button onclick="call('Respond',false)">Behåll</button>`;

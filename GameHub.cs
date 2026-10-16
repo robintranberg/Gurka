@@ -21,6 +21,7 @@ public class GameHub : Hub
     static long Ver; // versionsnummer så klienten kan ignorera tillstånd som kommer i fel ordning
     static int Starter, Turn, Count, Top = -1, Gurka = -1, Winner = -1, Points, ExN;
     static List<int> TopRs = new(); // korten som ligger högst i sticket, sorterade stigande – slås kort för kort
+    static HashSet<int> Zl = new(); // spelare utan kort över 10 som ännu inte valt Zlatan (7 nya kort före startbytet)
 
     static IEnumerable<int> Active => Enumerable.Range(0, 4).Where(i => Seats[i] != null);
     static int Next(int s) { do s = (s + 1) % 4; while (Seats[s] == null); return s; }
@@ -34,6 +35,7 @@ public class GameHub : Hub
         Reveal.Clear(); Trick.Clear(); Past.Clear(); Discards.Clear(); Points = 0; Done = false; Top = Gurka = Winner = -1; Count = 0;
         foreach (var i in Active) { Seats[i]!.Hand = Draw(7); Reveal[i] = Seats[i]!.Hand[6]; }
         Starter = Active.OrderByDescending(i => Reveal[i].R * 4 + Reveal[i].S).First();
+        Zl = Active.Where(i => Seats[i]!.Hand.All(c => c.R <= 10)).ToHashSet();
         Phase = "exchange";
     }
     static void StartPlay() { Reveal.Clear(); Phase = "play"; Turn = Starter; Count = 0; }
@@ -50,7 +52,7 @@ public class GameHub : Hub
 
     static object View(int you, long v) => new
     {
-        v, phase = Phase, you, starter = Starter, count = Count, top = Top, done = Done, free = RespFree, exn = ExN, deck = Deck.Count, slask = Discards.Count, gurka = Gurka, winner = Winner,
+        v, phase = Phase, you, starter = Starter, count = Count, top = Top, done = Done, free = RespFree, exn = ExN, deck = Deck.Count, slask = Discards.Count, gurka = Gurka, winner = Winner, zl = Zl.ToList(),
         turn = Phase == "play" ? Turn : Phase == "exchange" ? Starter : Phase == "respond" && Resp.Count > 0 ? Resp.Peek() : -1,
         seats = Enumerable.Range(0, 4).Select(i => Seats[i] == null ? (object?)null : new { seat = i, name = Seats[i]!.Name, n = Seats[i]!.Hand.Count, score = Seats[i]!.Score }).ToList(),
         hand = you >= 0 ? (object?)Seats[you]!.Hand.Select(c => new { r = c.R, s = c.S }).ToList() : null,
@@ -113,8 +115,10 @@ public class GameHub : Hub
     public Task Exchange(int[] idx) => Run(() =>
     {
         if (Phase != "exchange" || Me() != Starter) return "Inte din tur.";
+        if (Zl.Count > 0) return "Väntar på Zlatan-beslut.";
         idx ??= Array.Empty<int>();
         if (idx.Distinct().Count() != idx.Length || idx.Any(i => i < 0 || i > 6)) return "Ogiltigt val.";
+        if (idx.Length > Deck.Count) return $"Leken har bara {Deck.Count} kort kvar.";
         var h = Seats[Starter]!.Hand;
         if (idx.Length > 0)
         {
@@ -127,6 +131,25 @@ public class GameHub : Hub
         for (int s = Next(Starter); s != Starter; s = Next(s)) Resp.Enqueue(s);
         return null;
     });
+
+    public async Task Zlatan(bool take)
+    {
+        string? n = null;
+        await Run(() =>
+        {
+            int m = Me();
+            if (Phase != "exchange" || !Zl.Contains(m)) return "Du kan inte köra Zlatan nu.";
+            if (take)
+            {
+                if (Deck.Count < 7) return "Leken räcker inte för 7 nya kort.";
+                var old = Seats[m]!.Hand; Seats[m]!.Hand = Draw(7); Discards.AddRange(old);
+                n = Seats[m]!.Name;
+            }
+            Zl.Remove(m);
+            return null;
+        });
+        if (n != null) await Clients.All.SendAsync("chat", "Bordet", n + " körde Zlatan och fick 7 nya kort!");
+    }
 
     public Task Respond(bool all) => Run(() =>
     {
