@@ -155,8 +155,8 @@ function acts(){
  else if(s.phase==='play'&&my){
   const L=lead(),tp=s.trick.find(p=>p.seat===s.top),tr=!L&&tp?tp.cards.map(c=>c.r).sort((x,y)=>x-y):[0];
   const can=L||h.some(c=>c.r>=tr[0]);
-  const rs=[...sel].map(i=>h[i].r),ok=L?(rs.length==1||(rs.length==2&&rs[0]==rs[1])):rs.length==s.count;
-  a=(L?'':`<p>${can?(s.count==1?`Lägg ett kort ≥ ${RK(tr[0])} för att slå, annars saka.`:`Slå kort för kort (≥ ${tr.map(RK).join(' och ≥ ')}), eller slå ett och saka ditt lägsta, eller saka två.`):'Du kan inte slå – du måste saka ditt lägsta.'}</p>`)+
+  const rs=[...sel].map(i=>h[i].r),ok=L?rs.length>0&&rs.every(r=>r==rs[0]):rs.length==s.count;
+  a=(L?'':`<p>${can?(s.count==1?`Lägg ett kort ≥ ${RK(tr[0])} för att slå, annars saka.`:`Slå kort för kort (≥ ${tr.map(RK).join(' och ≥ ')}), eller slå några och saka dina lägsta, eller saka ${s.count==2?"båda":"alla"}.`):'Du kan inte slå – du måste saka ditt lägsta.'}</p>`)+
    (can?`<button class="pri" ${ok?'':'disabled'} onclick="P()">Spela valda</button>`:'')+(L?'':`<button ${can?'':'class="pri"'} onclick="K()">Saka (lägsta)</button>`)}
  else a=`<p>${s.turn>=0?esc(nm(s.turn))+' är på tur…':''}</p>`;
  $('actions').innerHTML=a;
@@ -164,7 +164,7 @@ function acts(){
 $('hand').onclick=e=>{
  const el=e.target.closest('.card');if(!el||!S||S.you<0||S.turn!==S.you||!['exchange','play','respond'].includes(S.phase)||(S.phase==='respond'&&!S.free))return;
  const i=+el.dataset.i;
- if(sel.has(i))sel.delete(i);else{const mx=S.phase==='exchange'?7:S.phase==='respond'?S.exn:lead()?2:S.count;if(mx==1)sel.clear();if(sel.size<mx)sel.add(i)}
+ if(sel.has(i))sel.delete(i);else{const mx=S.phase==='exchange'?7:S.phase==='respond'?S.exn:lead()?4:S.count;if(mx==1)sel.clear();if(sel.size<mx)sel.add(i)}
  document.querySelectorAll('#hand .card').forEach(c=>c.classList.toggle('sel',sel.has(+c.dataset.i)));acts();
 };
 const send=()=>{const v=$('ci').value;if(v.trim()){call('Chat',v);$('ci').value=''}};

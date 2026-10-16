@@ -177,7 +177,7 @@ public class GameHub : Hub
         var pr = ch.Select(c => c.R).OrderBy(r => r).ToList();
         if (lead)
         {
-            if (!(ch.Count == 1 || (ch.Count == 2 && ch[0].R == ch[1].R))) return "Spela ut ett kort eller två lika.";
+            if (!ch.All(c => c.R == ch[0].R)) return "Spela ut ett kort eller flera lika.";
         }
         else
         {
