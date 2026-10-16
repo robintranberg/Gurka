@@ -45,6 +45,7 @@ input{background:rgba(255,255,255,.92);color:var(--ink)}
 .card b{font-size:24px}.card i{font-style:normal;font-size:26px}.card.red{color:var(--red)}
 #hand .card{margin-left:-14px;cursor:pointer}#hand .card:first-child{margin-left:0}
 #hand .card.sel{transform:translateY(-16px);box-shadow:0 0 0 3px var(--brine),0 6px 12px rgba(0,0,0,.4)}
+.card.off{opacity:.45;cursor:not-allowed}
 .card.md{width:46px;height:66px}.card.md b{font-size:18px}.card.md i{font-size:19px}
 .card.sm{width:40px;height:56px}.card.sm b{font-size:15px}.card.sm i{font-size:16px}
 .deal{animation:deal .45s both cubic-bezier(.2,.8,.3,1.2);animation-delay:var(--d)}
@@ -141,7 +142,7 @@ function render(){
  if(s.past.length!==pp){pa.scrollLeft=pa.scrollWidth;pp=s.past.length}
  $('score').innerHTML='<h2>Poängställning</h2>'+s.seats.filter(x=>x).sort((a,b)=>b.score-a.score).map(p=>`<div class="sc"><span>${esc(p.name)}</span><b>${p.score}</b></div>`).join('');
  $('hand').innerHTML=h.map((c,i)=>({c,i})).sort((a,b)=>a.c.r-b.c.r||a.c.s-b.c.s).map((x,k)=>card(x.c,(sel.has(x.i)?'sel ':'')+(deal?'deal':''),`data-i="${x.i}" style="--d:${k*60}ms"`)).join('');
- acts();
+ mark();acts();
 }
 function acts(){
  const s=S,h=s.hand||[],me=s.you>=0,my=me&&s.turn===s.you;let a='';
@@ -164,9 +165,14 @@ function acts(){
 $('hand').onclick=e=>{
  const el=e.target.closest('.card');if(!el||!S||S.you<0||S.turn!==S.you||!['exchange','play','respond'].includes(S.phase)||(S.phase==='respond'&&!S.free))return;
  const i=+el.dataset.i;
+ if(el.classList.contains('off'))return; // vid utspel: bara kort med samma valör som de redan markerade
  if(sel.has(i))sel.delete(i);else{const mx=S.phase==='exchange'?7:S.phase==='respond'?S.exn:lead()?4:S.count;if(mx==1)sel.clear();if(sel.size<mx)sel.add(i)}
- document.querySelectorAll('#hand .card').forEach(c=>c.classList.toggle('sel',sel.has(+c.dataset.i)));acts();
+ mark();acts();
 };
+function mark(){
+ const r=S.phase==='play'&&S.turn===S.you&&lead()&&sel.size?S.hand[[...sel][0]].r:0;
+ document.querySelectorAll('#hand .card').forEach(c=>{const i=+c.dataset.i;c.classList.toggle('sel',sel.has(i));c.classList.toggle('off',r>0&&S.hand[i].r!==r)});
+}
 const send=()=>{const v=$('ci').value;if(v.trim()){call('Chat',v);$('ci').value=''}};
 $('cs').onclick=send;$('ci').onkeydown=e=>{if(e.key==='Enter')send()};
 $('chatBtn').onclick=()=>$('chat').classList.toggle('open');
