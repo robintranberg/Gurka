@@ -1,0 +1,3 @@
+- [Testing setup](testing-setup.md) — isolated server on 5077, puppeteer-core + Edge, room/viewport pitfalls
+- [Design decisions](design-decisions.md) — hidden deck info, approved card faces, CSP-safe markup, http-on-LAN limits, token storage
+- [Collaboration](collaboration.md) — confirm hub contracts with developer first; tell reviewer about API changes; unload event order

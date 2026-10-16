@@ -1,0 +1,2 @@
+- [Testmönster](test-patterns.md) — Table-hjälpare, bestämd lek, kortsträngar, SignalR-integration, mutationskoll
+- [Återkommande fel](recurring-issues.md) — API ändras under testskrivning, ej nollställt tillstånd vid avbrott

@@ -1,0 +1,18 @@
+---
+name: testing-setup
+description: How frontend verifies Gurka in real browsers - isolated server port, puppeteer-core with Edge, pitfalls
+metadata:
+  type: project
+---
+Verify the client against a real server with real browser clients, not by reading code.
+
+- Program.cs hardcodes `UseUrls("http://0.0.0.0:5000")`; run an isolated instance with `dotnet build -o <scratch>/srv` then `dotnet Gurka.dll --contentRoot <repo> --Kestrel:Endpoints:Http:Url=http://127.0.0.1:5077` (Kestrel config overrides UseUrls). Start it with PowerShell `Start-Process` – a Bash background job got killed once. wwwroot edits are live without restart.
+- Browser: puppeteer-core + Edge at `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`. One `createBrowserContext()` per player so storage is separate.
+- Rooms: the server rejects unknown room codes ("Bordet finns inte"); create one with `hub.invoke('NewRoom')` first, then open `/?bord=CODE`.
+- Pitfall: `setViewport` that toggles `isMobile`/`hasTouch` reloads the page (kills injected bots). Keep them constant.
+- Narrow widths: emulated viewport works below 500 px; the iframe check (host page on same origin, e.g. `/health`) also works since CSP has `frame-ancestors 'self'`.
+- Layout checker: elements inside scroll containers (#past) show up as "outside the viewport" – false positives.
+- Flood filter limits Hello/NewRoom per IP, so do not open dozens of tabs quickly.
+
+**Why:** first full run found bugs (play button hidden on forced sak, fan CSS var bug) that code reading missed.
+**How to apply:** reuse this setup for every UI change; see [[design-decisions]].

@@ -1,0 +1,2 @@
+- [Backend-fallgropar](backend-pitfalls.md) — Conn/Gone-sessioner, flera flikar, SignalR-filter-using, bygg/röktest utan låst bin
+- [Teamsamarbete](team-collab.md) — skicka exakt kontrakt till frontend, testbart API + regler till tester, bakåtkompatibelt

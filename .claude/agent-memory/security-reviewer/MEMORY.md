@@ -1,0 +1,3 @@
+- [Vuln status](vuln-status.md) — all reported findings B*/F*, status, and verified non-issues
+- [Review patterns](review-patterns.md) — Gurka-specific checklist: View leaks, locks, tokens, CSP, SW
+- [Feedback: versioning](feedback-versioning.md) — state file version/time in every review report

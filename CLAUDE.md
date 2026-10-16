@@ -1,6 +1,8 @@
 # Gurka
 
-Kortspelet Gurka för 2–4 spelare. Servern är byggd i ASP.NET Core 8 med SignalR (`GameHub.cs`, `Program.cs`). Klienten är en enda fil, `wwwroot/index.html`. Starta med `dotnet run`. Servern lyssnar på `http://0.0.0.0:5000` och kan nås från mobilen i samma nätverk.
+Kortspelet Gurka för 2–4 spelare. Servern är byggd i ASP.NET Core 8 med SignalR: spellogiken finns i `Game.cs`, bord, tokens, återanslutning och flodskydd i `Lobby.cs`, ett tunt hubblager i `GameHub.cs` och uppstart, CSP och säkerhetsheaders i `Program.cs`. Klienten finns i `wwwroot/`: `index.html` (bara markup), `app.js`, `app.css`, `lib/signalr.min.js` (lokal kopia) samt PWA-filer. Testerna (xUnit) ligger i `tests/Gurka.Tests/`. Kör dem med `dotnet test Gurka.sln`.
+
+Starta med `dotnet run`. Servern lyssnar som standard på `http://0.0.0.0:5000` och kan nås från mobilen i samma nätverk. Porten kan ändras med `--urls` eller `ASPNETCORE_URLS`. Spelet körs utan HTTPS och ska bara köras i ett betrott nätverk, till exempel hemnätverket. Service worker, Wake Lock och urklipp kräver HTTPS eller localhost och är därför inte aktiva via `http://<IP>`.
 
 Kommunicera med användaren på svenska.
 
