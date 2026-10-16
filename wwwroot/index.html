@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="sv"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gurka</title>
+<style>
+:root{--ink:#1d2a24;--paper:#fbf8ef;--red:#c23b2e;--brine:#e8c547;--mist:#e9f0e2}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:radial-gradient(ellipse at 50% 20%,#24382c,#101b15);color:var(--mist);font:16px/1.4 ui-rounded,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#app{display:grid;grid-template-columns:1fr 300px;grid-template-rows:auto 1fr;height:100dvh}
+header{grid-column:1/3;display:flex;align-items:center;gap:16px;padding:10px 18px;padding-top:calc(10px + env(safe-area-inset-top))}
+h1{margin:0;font:700 28px Georgia,serif}#status{opacity:.85}
+main{display:flex;flex-direction:column;min-height:0;padding:0 14px}
+#table{flex:1;min-height:200px;display:flex;padding:2px 0 6px}
+.rim{flex:1;display:flex;min-height:0;padding:12px;border-radius:46% / 34%;background:linear-gradient(145deg,#8a5e37,#4a321d);box-shadow:0 12px 30px rgba(0,0,0,.55),inset 0 2px 3px rgba(255,255,255,.2)}
+.felt{flex:1;min-height:0;display:grid;grid-template-columns:minmax(84px,1fr) 3fr minmax(84px,1fr);grid-template-rows:auto 1fr auto;grid-template-areas:". top ." "mid mid mid" ". bottom .";padding:8px 14px;border-radius:44% / 32%;background:radial-gradient(ellipse at 50% 40%,#3d7c57,#25593d 70%);box-shadow:inset 0 0 40px rgba(0,0,0,.5)}
+#p-top{grid-area:top;justify-self:center}#p-bottom{grid-area:bottom;justify-self:center}
+#p-left,#p-right{grid-row:2;align-self:center;z-index:1}#p-left{grid-column:1;justify-self:start}#p-right{grid-column:3;justify-self:end}
+.plate{background:rgba(0,0,0,.32);border:2px solid transparent;border-radius:14px;padding:6px 12px;text-align:center;min-width:84px;max-width:150px}
+.plate.you{background:rgba(232,197,71,.18)}
+.plate.turn{border-color:var(--brine);animation:glow 1.4s ease-in-out infinite}
+.pn{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pc{font-size:13px;opacity:.85}
+.backs{display:flex;justify-content:center;height:20px;margin-top:4px;padding-right:6px}
+.back{width:12px;height:20px;border-radius:3px;margin-right:-6px;border:1px solid #1c3f2d;background:repeating-linear-gradient(45deg,#d5e6c8,#d5e6c8 3px,#9cc08a 3px,#9cc08a 6px)}
+.backs:has(.card){height:auto;padding:0}
+#trick{grid-area:mid;display:grid;grid-template-columns:1fr auto 1fr;grid-template-rows:auto 1fr auto;place-items:center;min-height:0;padding:0 70px}
+.play{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 6px;border-radius:10px}
+.play[data-p=top]{grid-area:1/2}.play[data-p=left]{grid-area:2/1}.play[data-p=right]{grid-area:2/3}.play[data-p=bottom]{grid-area:3/2}
+.play.won{outline:3px solid var(--brine)}.play .nm{font-size:12px;opacity:.85}
+.cs{display:flex}.cs .card+.card{margin-left:-20px}
+.tag{font-size:11px;border-radius:99px;padding:0 8px;background:var(--brine);color:var(--ink);font-weight:700}.tag.sak{background:#f4b6a8}
+#msg{grid-area:2/2;text-align:center;font-weight:700;font-size:18px;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+#past{display:flex;align-items:center;gap:12px;overflow-x:auto;min-height:60px;padding:4px 8px}
+.pl{font-size:13px;opacity:.7;flex:none}
+.grp{display:flex;flex:none;padding-right:18px}.grp .mc+.mc{margin-left:-18px}
+.mc{flex:none;width:34px;height:48px;background:var(--paper);color:var(--ink);border-radius:5px;box-shadow:-2px 0 4px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:flex-start;padding:3px 0 0 4px;font:700 13px/1.1 Georgia,serif}
+.mc i{font-style:normal;font-size:14px}.mc.red{color:var(--red)}.mc.sk{background:#f1d9d3}
+#me{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+#actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;min-height:44px;margin-bottom:4px;text-align:center}#actions p{margin:0}
+button,input{font:inherit;border-radius:10px;border:0;padding:10px 16px}
+button{background:rgba(255,255,255,.15);color:var(--mist);cursor:pointer}
+button.pri{background:var(--brine);color:var(--ink);font-weight:700}button:disabled{opacity:.4;cursor:default}
+input{background:rgba(255,255,255,.92);color:var(--ink)}
+#hand{display:flex;justify-content:center;padding:16px 8px 4px;overflow-x:auto}
+.card{flex:none;width:64px;height:92px;background:var(--paper);color:var(--ink);border-radius:9px;box-shadow:0 3px 8px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Georgia,serif;user-select:none;transition:transform .15s,box-shadow .15s}
+.card b{font-size:24px}.card i{font-style:normal;font-size:26px}.card.red{color:var(--red)}
+#hand .card{margin-left:-14px;cursor:pointer}#hand .card:first-child{margin-left:0}
+#hand .card.sel{transform:translateY(-16px);box-shadow:0 0 0 3px var(--brine),0 6px 12px rgba(0,0,0,.4)}
+.card.md{width:46px;height:66px}.card.md b{font-size:18px}.card.md i{font-size:19px}
+.card.sm{width:40px;height:56px}.card.sm b{font-size:15px}.card.sm i{font-size:16px}
+.deal{animation:deal .45s both cubic-bezier(.2,.8,.3,1.2);animation-delay:var(--d)}
+.in{animation:inn .4s both cubic-bezier(.2,.8,.3,1.2)}
+@keyframes deal{from{opacity:0;transform:translateY(60px) scale(.7) rotate(8deg)}}
+@keyframes inn{from{opacity:0;transform:translateY(80px) scale(.6) rotate(-8deg)}}
+@keyframes glow{50%{box-shadow:0 0 14px var(--brine)}}
+#chat{display:flex;flex-direction:column;background:rgba(0,0,0,.28);margin:0 14px 14px 0;border-radius:14px;min-height:0;overflow:hidden}
+#score{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.12)}
+#score h2{margin:0 0 4px;font:700 16px Georgia,serif}
+.sc{display:flex;justify-content:space-between;font-size:15px}.sc b{color:var(--brine)}
+#log{flex:1;overflow-y:auto;padding:10px;font-size:14px}#log div{margin-bottom:6px;overflow-wrap:anywhere}#log b{color:var(--brine)}
+#cin{display:flex;gap:6px;padding:8px}#cin input{flex:1;min-width:0}
+#chatBtn{display:none}
+#toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#fff;color:var(--ink);padding:10px 16px;border-radius:10px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:90vw}#toast.on{opacity:1}
+@media(max-width:800px){
+#app{grid-template-columns:1fr}header{grid-column:1;padding-bottom:4px}
+main{padding:0 8px}
+.rim{padding:7px;border-radius:30% / 22%}.felt{border-radius:28% / 20%;padding:6px 8px;grid-template-columns:minmax(64px,1fr) 3fr minmax(64px,1fr)}
+.plate{min-width:64px;max-width:96px;padding:4px 6px;font-size:13px}#p-left .backs,#p-right .backs{display:none}
+#trick{padding:0 40px}.card.md{width:38px;height:54px}.card.md b{font-size:15px}.card.md i{font-size:16px}.cs .card+.card{margin-left:-16px}
+#msg{font-size:15px}
+.card{width:54px;height:80px}.card b{font-size:20px}.card i{font-size:22px}#hand .card{margin-left:-20px}.card.sm{width:34px;height:48px}
+#chat{position:fixed;left:0;right:0;bottom:0;margin:0;height:60dvh;border-radius:14px 14px 0 0;transform:translateY(100%);transition:transform .25s;background:#173325;z-index:5}#chat.open{transform:none}
+#chatBtn{display:block;position:fixed;right:12px;top:calc(8px + env(safe-area-inset-top));padding:6px 12px;z-index:6}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body>
+<div id="app">
+<header><h1>Gurka</h1><div id="status">Ansluter…</div></header>
+<main>
+<div id="table"><div class="rim"><div class="felt">
+ <div id="p-top"></div><div id="p-left"></div><div id="p-right"></div><div id="p-bottom"></div>
+ <div id="trick"></div>
+</div></div></div>
+<div id="past"></div>
+<section id="me"><div id="actions"></div><div id="hand"></div></section>
+</main>
+<aside id="chat"><div id="score"></div><div id="log"></div><div id="cin"><input id="ci" maxlength="200" placeholder="Skriv något…"><button class="pri" id="cs">Skicka</button></div></aside>
+</div>
+<button id="chatBtn">Chatt</button><div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+<script>
+const $=i=>document.getElementById(i),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const SU='♣♦♥♠',RK=r=>r<11?r:['Kn','D','K','E'][r-11],isRed=c=>c.s==1||c.s==2;
+const card=(c,x='',a='')=>`<div class="card ${isRed(c)?'red':''} ${x}" ${a}><b>${RK(c.r)}</b><i>${SU[c.s]}</i></div>`;
+const mini=(c,sk)=>`<div class="mc ${isRed(c)?'red':''} ${sk?'sk':''}">${RK(c.r)}<i>${SU[c.s]}</i></div>`;
+const hub=new signalR.HubConnectionBuilder().withUrl('/hub').withAutomaticReconnect().build();
+let S=null,sel=new Set(),sig='',pn=0,pt=0,pp=0,lv=0;
+const call=(m,...a)=>hub.invoke(m,...a).catch(()=>toast('Kunde inte nå servern'));
+const nm=i=>S.seats[i]?S.seats[i].name:'?';
+const lead=()=>!S.trick.length||S.done;
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2600)}
+hub.on('state',s=>{if(s.v<=lv)return;lv=s.v;S=s;render()});hub.on('err',toast); // ignorera tillstånd som kommer i fel ordning
+hub.on('chat',(n,t)=>{const l=$('log');l.insertAdjacentHTML('beforeend',`<div><b>${esc(n)}:</b> ${esc(t)}</div>`);while(l.childElementCount>200)l.firstChild.remove();l.scrollTop=l.scrollHeight});
+const connect=()=>hub.start().catch(()=>{$('status').textContent='Kunde inte ansluta – försöker igen…';setTimeout(connect,3000)});
+let seated=false;
+hub.onreconnecting(()=>{lv=0;seated=!!S&&S.you>=0;$('status').textContent='Återansluter…'});
+hub.onreconnected(()=>{if(seated)toast('Återansluten – du behöver gå med igen')});
+hub.onclose(()=>{lv=0;$('status').textContent='Tappade anslutningen – försöker igen…';setTimeout(connect,3000)});
+connect();
+function J(){call('Join',$('nick').value)}
+function W(){call('Swap',[...sel],false);sel.clear()}
+function WD(){call('Swap',[...sel],true);sel.clear()}
+function WA(){call('Swap',[0,1,2,3,4,5,6],false)}
+function WK(){call('Swap',[],false)}
+function freeResp(s){const N=s.exn,dk=s.deck;
+ let b=`<p>${esc(nm(s.starter))} bytte ${N} kort. Leken har ${dk} kort kvar.</p><button onclick="WK()">Behåll</button>`;
+ if(dk>=N)b+=`<button class="pri" ${sel.size==N?'':'disabled'} onclick="W()">Byt ${N} valda</button>`;
+ if(dk>=7&&N<7)b+=`<button onclick="WA()">Byt alla</button>`;
+ if(dk<N){if(dk>0)b+=`<button class="pri" ${sel.size==dk?'':'disabled'} onclick="W()">Byt ${dk} valda (sista i leken)</button>`;
+  b+=`<button ${sel.size==N?'':'disabled'} onclick="WD()">Gräv i slasken (${N} slumpade)</button>`}
+ return b}
+function X(){call('Exchange',[...sel]);sel.clear()}
+function P(){call('PlayCards',[...sel])}
+function K(){const h=S.hand;call('PlayCards',h.map((c,i)=>[c.r,i]).sort((a,b)=>a[0]-b[0]).slice(0,S.count).map(x=>x[1]))}
+function layout(s){ // placerar spelarna runt bordet, du längst ner
+ const seated=[0,1,2,3].filter(i=>s.seats[i]);
+ const ord=s.you>=0?[0,1,2,3].map(k=>(s.you+k)%4).filter(i=>s.seats[i]):seated;
+ const t={1:['bottom'],2:['bottom','top'],3:['bottom','left','right'],4:['bottom','left','top','right']}[ord.length]||[];
+ const m={};ord.forEach((i,k)=>m[i]=t[k]);return m}
+function render(){
+ const s=S,h=s.hand||[],g=h.map(c=>c.r*4+c.s).join(),pos=layout(s);
+ const deal=g!==sig&&h.length>=pn;if(g!==sig)sel.clear();sig=g;pn=h.length;
+ const cnt=s.seats.filter(x=>x).length;
+ $('status').textContent=({lobby:`${cnt}/4 spelare vid bordet`,exchange:`${nm(s.starter)} har högst kort och börjar`,respond:`${s.turn>=0?nm(s.turn):''} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`,play:`${nm(s.turn)} är på tur`,over:'Omgången är slut'})[s.phase]||'';
+ const pl={top:'',left:'',right:'',bottom:''};
+ s.seats.forEach((p,i)=>{if(!p)return;const rv=s.reveal.find(r=>r.seat===i);
+  pl[pos[i]]=`<div class="plate ${s.turn===i?'turn':''} ${i===s.you?'you':''}"><div class="pn">${esc(p.name)}${i===s.you?' (du)':''}${i===s.starter&&s.phase!=='lobby'?' ★':''}</div><div class="pc">${p.score} poäng</div><div class="pc">${p.n} kort</div><div class="backs">${rv?card(rv,'sm in'):'<span class="back"></span>'.repeat(p.n)}</div></div>`});
+ for(const k in pl)$('p-'+k).innerHTML=pl[k];
+ const t=s.trick;if(t.length<pt)pt=0;
+ $('trick').innerHTML=t.map((p,k)=>`<div class="play ${s.done&&p.seat===s.top?'won':''}" data-p="${pos[p.seat]||'bottom'}"><div class="nm">${esc(nm(p.seat))}</div><div class="cs">${p.cards.map(c=>card(c,'md '+(k>=pt?'in':''))).join('')}</div>${p.sak?'<span class="tag sak">Sakat</span>':p.seat===s.top&&!s.done?'<span class="tag">Högst</span>':''}</div>`).join('')+
+  `<div id="msg">${s.phase==='over'?`🥒 ${esc(nm(s.gurka))} fick gurkan (−${s.points} poäng)<br>🏆 ${esc(nm(s.winner))} vinner (+${s.points} poäng)`:s.phase==='lobby'?'':`<span class="pc">Leken: ${s.deck} kort, slasken: ${s.slask} kort</span>`}</div>`;pt=t.length;
+ const pa=$('past');pa.innerHTML=s.past.length?'<span class="pl">Spelade kort</span>'+s.past.map(r=>`<div class="grp">${r.flatMap(p=>p.cards.map(c=>mini(c,p.sak))).join('')}</div>`).join(''):'';
+ if(s.past.length!==pp){pa.scrollLeft=pa.scrollWidth;pp=s.past.length}
+ $('score').innerHTML='<h2>Poängställning</h2>'+s.seats.filter(x=>x).sort((a,b)=>b.score-a.score).map(p=>`<div class="sc"><span>${esc(p.name)}</span><b>${p.score}</b></div>`).join('');
+ $('hand').innerHTML=h.map((c,i)=>({c,i})).sort((a,b)=>a.c.r-b.c.r||a.c.s-b.c.s).map((x,k)=>card(x.c,(sel.has(x.i)?'sel ':'')+(deal?'deal':''),`data-i="${x.i}" style="--d:${k*60}ms"`)).join('');
+ acts();
+}
+function acts(){
+ const s=S,h=s.hand||[],me=s.you>=0,my=me&&s.turn===s.you;let a='';
+ if(!me){
+  a=(s.phase==='lobby'||s.phase==='over')?(s.seats.every(x=>x)?'<p>Bordet är fullt (4/4). Vänta tills en plats blir ledig.</p>':`<input id="nick" maxlength="14" placeholder="Ditt namn" autocomplete="off"><button class="pri" onclick="J()">Gå med</button>`):'<p>Spelet pågår – du tittar på.</p>'}
+ else if(s.phase==='lobby'||s.phase==='over'){const c=s.seats.filter(x=>x).length;
+  a=c>1?`<button class="pri" onclick="call('Start')">${s.phase==='over'?'Spela igen':'Starta spelet'}</button>`:'<p>Väntar på fler spelare (minst 2)…</p>'}
+ else if(s.phase==='exchange'&&my)a=`<p>Markera de kort du vill byta, eller byt inga.</p><button class="pri" onclick="X()">${sel.size?`Byt ${sel.size} kort`:'Byt inga'}</button>`;
+ else if(s.phase==='respond'&&my&&s.free)a=freeResp(s);
+ else if(s.phase==='respond'&&my)a=`<p>${esc(nm(s.starter))} bytte inga kort. Kasta alla och få 7 nya?</p><button class="pri" onclick="call('Respond',true)">Kasta alla</button><button onclick="call('Respond',false)">Behåll</button>`;
+ else if(s.phase==='play'&&my){
+  const L=lead(),tp=s.trick.find(p=>p.seat===s.top),tr=!L&&tp?tp.cards[0].r:0;
+  const can=L||(s.count==1?h.some(c=>c.r>=tr):Object.values(h.reduce((o,c)=>(o[c.r]=(o[c.r]||0)+(c.r>=tr?1:0),o),{})).some(n=>n>=2));
+  const rs=[...sel].map(i=>h[i].r),ok=L?(rs.length==1||(rs.length==2&&rs[0]==rs[1])):rs.length==s.count;
+  a=(L?'':`<p>${can?`Lägg ${s.count} kort ≥ ${RK(tr)} för att slå, annars saka.`:'Du kan inte slå – du måste saka ditt lägsta.'}</p>`)+
+   (can?`<button class="pri" ${ok?'':'disabled'} onclick="P()">Spela valda</button>`:'')+(L?'':`<button ${can?'':'class="pri"'} onclick="K()">Saka (lägsta)</button>`)}
+ else a=`<p>${s.turn>=0?esc(nm(s.turn))+' är på tur…':''}</p>`;
+ $('actions').innerHTML=a;
+}
+$('hand').onclick=e=>{
+ const el=e.target.closest('.card');if(!el||!S||S.you<0||S.turn!==S.you||!['exchange','play','respond'].includes(S.phase)||(S.phase==='respond'&&!S.free))return;
+ const i=+el.dataset.i;
+ if(sel.has(i))sel.delete(i);else{const mx=S.phase==='exchange'?7:S.phase==='respond'?S.exn:lead()?2:S.count;if(mx==1)sel.clear();if(sel.size<mx)sel.add(i)}
+ document.querySelectorAll('#hand .card').forEach(c=>c.classList.toggle('sel',sel.has(+c.dataset.i)));acts();
+};
+const send=()=>{const v=$('ci').value;if(v.trim()){call('Chat',v);$('ci').value=''}};
+$('cs').onclick=send;$('ci').onkeydown=e=>{if(e.key==='Enter')send()};
+$('chatBtn').onclick=()=>$('chat').classList.toggle('open');
+</script></body></html>
