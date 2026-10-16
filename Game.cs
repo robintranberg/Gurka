@@ -70,8 +70,10 @@ public class Game
     {
         Phase = "over";
         var m = Trick.Select((p, i) => (i, seat: p.Seat, mx: p.Cards.Max(c => c.R))).ToList();
-        Gurka = m.OrderByDescending(x => x.mx).ThenByDescending(x => x.i).First().seat; // högst kort (lika => sist spelade)
-        Winner = m.OrderBy(x => x.mx).ThenBy(x => x.i).First().seat;                    // lägst kort (lika => först spelade)
+        int lo = m.Min(x => x.mx);
+        if (m.Count(x => x.mx == lo) > 1) { Gurka = Winner = -1; Points = 0; Last = "over"; return; } // flera går ut på samma lägsta valör: oavgjort, inga poäng
+        Gurka =m.OrderByDescending(x => x.mx).ThenByDescending(x => x.i).First().seat; // högst kort (lika => sist spelade)
+        Winner = m.OrderBy(x => x.mx).First().seat;                                      // lägst kort (alltid entydigt här)
         Points = m.Max(x => x.mx) * 5;                                                   // högsta kortet * 5 till vinnaren
         Seats[Winner]!.Score += Points;
         if (Gurka != Winner) Seats[Gurka]!.Score -= Points; // förloraren får minuspoäng

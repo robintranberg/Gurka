@@ -71,6 +71,9 @@ setInterval(()=>document.querySelectorAll('.gr').forEach(e=>{const u=until[e.dat
 
 // ---------- regler som speglar servern ----------
 const nm=i=>S.seats[i]?S.seats[i].name:'?',who=i=>i===S.you?'Du':nm(i);
+const draw=s=>s.phase==='over'&&(s.winner<0||s.gurka<0); // oavgjort: ingen vinner, poängen står still
+const tie=s=>{const m=s.trick.map(q=>({seat:q.seat,mx:Math.max(...q.cards.map(c=>+c.r))})),lo=Math.min(...m.map(x=>x.mx)),w=m.filter(x=>x.mx===lo).map(x=>esc(who(x.seat))); // samma beräkning som servern
+ return w.length>1&&lo<15?`${w.slice(0,-1).join(', ')} och ${w.at(-1)} delade den lägsta valören (${RN(lo)}).`:'Flera delade den lägsta valören i sista sticket.'};
 const lead=()=>!S.trick.length||S.done,myTurn=()=>S.you>=0&&S.turn===S.you;
 const topRs=()=>{const p=S.trick.find(p=>p.seat===S.top);return p?p.cards.map(c=>c.r).sort((a,b)=>a-b):[0]};
 function legal(ix){ // -1 = ogiltigt, annars antal sakade kort (samma kontroll som PlayCards)
@@ -121,6 +124,7 @@ function render(p){
  wake(inGame);
 }
 function msg(s){
+ if(draw(s))return`<div class="res"><span class="w">🤝 Oavgjort</span><span class="sub">Ingen vinner – poängen står still</span></div>`;
  if(s.phase==='over')return`<div class="res"><span class="g">🥒 ${esc(who(s.gurka))} fick gurkan <small>(−${+s.points})</small></span><span class="w">🏆 ${esc(who(s.winner))} vinner <small>(+${+s.points})</small></span></div>`;
  if(s.phase==='exchange')return`${esc(who(s.starter))} fick högst kort och börjar<span class="sub">${s.starter===s.you?'Välj kort att byta':'Byter kort…'}</span>`;
  if(s.phase==='zlatan')return`${esc(who(s.starter))} byter ${+s.exn} kort<span class="sub">${s.zlMe?'Du kan köra Zlatan':`Väntar på Zlatan-beslut (${+s.zlN})`}</span>`;
@@ -129,7 +133,7 @@ function msg(s){
  return''}
 function score(){const s=S;
  put($('score'),'<h2>Poängställning</h2>'+(s.seats.filter(x=>x).sort((a,b)=>b.score-a.score).map(q=>`<div class="sc s${q.seat}"><i class="dot"></i><span>${esc(q.name)}${q.seat===s.you?' (du)':''}</span><b>${+q.score}</b></div>`).join('')||'<p class="hr">Ingen vid bordet ännu.</p>')+
-  (hist.length?'<h3>Senaste omgångar</h3>'+hist.slice(-8).reverse().map(x=>`<div class="hr"><i>#${+x.n}</i><span>🏆 ${esc(x.w)} +${+x.p} · 🥒 ${esc(x.g)} −${+x.p}</span></div>`).join(''):''))}
+  (hist.length?'<h3>Senaste omgångar</h3>'+hist.slice(-8).reverse().map(x=>`<div class="hr"><i>#${+x.n}</i><span>${x.d?'🤝 Oavgjort – poängen stod still':`🏆 ${esc(x.w)} +${+x.p} · 🥒 ${esc(x.g)} −${+x.p}`}</span></div>`).join(''):''))}
 
 // lobbyn: väntrummet innan första given
 function lobby(){const s=S,lb=$('lobby');lb.hidden=s.phase!=='lobby';if(lb.hidden)return;
@@ -220,8 +224,8 @@ function events(p,r){
  if(mine(s)&&!(mine(p)&&p.phase===s.phase&&p.turn===s.turn)){sfx('turn');buzz(25);say('Din tur. '+$('actions').querySelector('p')?.textContent||'')}
  if(s.phase==='exchange'&&p.phase!=='exchange')say(`Ny giv. ${who(s.starter)} börjar.`);
  if(s.phase==='over'&&p.phase!=='over'){
-  const e={n:(hist.at(-1)?.n||0)+1,w:nm(s.winner),g:nm(s.gurka),p:+s.points};hist.push(e);hist=hist.slice(-20);ss.set('hist.'+room,JSON.stringify(hist));score();
-  setTimeout(()=>{showRes();if(s.winner===s.you){sfx('win');confetti('');buzz([40,60,40,60,120])}else if(s.gurka===s.you){sfx('gurka');confetti('🥒');buzz(400)}else sfx('over')},Math.max(600,played*200))}
+  const dr=draw(s),e=dr?{n:(hist.at(-1)?.n||0)+1,d:1}:{n:(hist.at(-1)?.n||0)+1,w:nm(s.winner),g:nm(s.gurka),p:+s.points};hist.push(e);hist=hist.slice(-20);ss.set('hist.'+room,JSON.stringify(hist));score();
+  setTimeout(()=>{showRes();if(dr){sfx('over');buzz(60)}else if(s.you>=0&&s.winner===s.you){sfx('win');confetti('');buzz([40,60,40,60,120])}else if(s.you>=0&&s.gurka===s.you){sfx('gurka');confetti('🥒');buzz(400)}else sfx('over')},Math.max(600,played*200))}
  if(s.phase!=='over'&&resOpen)hideRes();
 }
 function confetti(t){if(RM.matches)return;const fx=$('fx'),cs=['#ecc94b','#7fd48a','#6fc3df','#f2927f','#b9a3f5','#fff'];
@@ -230,6 +234,9 @@ function confetti(t){if(RM.matches)return;const fx=$('fx'),cs=['#ecc94b','#7fd48
 
 // resultatrutan efter sista sticket
 function showRes(){const s=S;if(s.phase!=='over')return;const me=s.you>=0,w=s.winner,g=s.gurka;
+ if(draw(s)){$('result').innerHTML=`<div class="big" aria-hidden="true">🤝</div><h2 id="rt">Oavgjort</h2><p>Ingen vinner – poängen står still.</p><p class="small">${tie(s)}</p>
+  <div class="row">${me?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:''}<button data-a="hideRes">Visa bordet</button></div>`;
+  $('result').hidden=false;$('scrim').hidden=false;resOpen=true;$('result').querySelector('button')?.focus();return}
  const big=w===s.you?'🏆':'🥒',t=w===s.you?'Du vann!':g===s.you?'Du fick gurkan!':`${esc(nm(g))} fick gurkan!`;
  const last=s.trick.flatMap(q=>q.cards).reduce((a,c)=>c.r>a.r?c:a,{r:0,s:0});
  $('result').innerHTML=`<div class="big" aria-hidden="true">${big}</div><h2 id="rt">${t}</h2><p>Högsta kortet i sista sticket var ${last.r?cn(last):'–'}.</p>

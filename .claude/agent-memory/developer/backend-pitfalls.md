@@ -15,6 +15,7 @@ metadata:
 - Allt i View() går till alla vid bordet. Härledd information om dolda kort är lika känslig som korten själva. Exempel: listan `Zl` avslöjade svaga händer. Team Lead beslutade 2026-10-16 att varje klient bara får `zlMe` och `zlN`, och att `Zl` töms i DoExchange.
 - `o.AddFilter(...)` på HubOptions kräver `using Microsoft.AspNetCore.SignalR;` i Program.cs. Det namnrummet ingår inte i implicit usings.
 - Bygg till scratch (`dotnet build -o <scratch>/build`) och starta med `dotnet Gurka.dll --contentRoot C:/projects_dotnetcloud/Gurka`. Röktesta med Node 22 (inbyggd WebSocket) och SignalR JSON-protokollet direkt, utan npm: POST /hub/negotiate?negotiateVersion=1, sedan ws://...?id=connectionToken, handshake `{"protocol":"json","version":1}\x1e`.
+- Regel som användaren bestämt 2026-10-16: om flera spelare i sista sticket delar den lägsta valören (min av varje spelares högsta kort) blir det oavgjort. Då gäller Winner = Gurka = -1, Points = 0 och inga poängändringar. Kod som läser Winner eller Gurka måste därför klara -1.
 - Spelreglerna i Game.cs är facit. Användaren har sagt att reglerna inte får ändras på eget initiativ (2026-10-16).
 
 **Why:** De här kostade tid eller gav tysta fel under refaktoreringen 2026-10-16.

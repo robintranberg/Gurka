@@ -211,3 +211,4 @@ header{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:0}h1{font
 .rooms p{font-size:14px;opacity:.8;margin:0 0 8px;text-align:center}.rooms .join{margin:10px 0 0}.rooms input{text-transform:uppercase;letter-spacing:.12em}
 .code{font-family:ui-monospace,Consolas,monospace;letter-spacing:.12em;color:var(--brine2)}
 .s0{--c:var(--c0)}.s1{--c:var(--c1)}.s2{--c:var(--c2)}.s3{--c:var(--c3)} /* varje plats har sin färg */
+#result .small{font-size:13px;opacity:.75;margin-top:-4px}
