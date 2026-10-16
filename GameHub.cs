@@ -16,12 +16,13 @@ public class GameHub : Hub
     static readonly List<Card> Discards = new(); // slasken: kastade kort är ute ur leken
     static List<Card> Deck = new();
     static Queue<int> Resp = new();
-    static string Phase = "lobby"; // lobby, exchange, respond, play, over
+    static string Phase = "lobby"; // lobby, exchange, zlatan, respond, play, over
     static bool Done, RespFree;
     static long Ver; // versionsnummer så klienten kan ignorera tillstånd som kommer i fel ordning
     static int Starter, Turn, Count, Top = -1, Gurka = -1, Winner = -1, Points, ExN;
     static List<int> TopRs = new(); // korten som ligger högst i sticket, sorterade stigande – slås kort för kort
     static HashSet<int> Zl = new(); // spelare utan kort över 10 som ännu inte valt Zlatan (7 nya kort före startbytet)
+    static int[] ExIdx = Array.Empty<int>(); // korten startspelaren valt att byta, väntar på Zlatan-beslut
 
     static IEnumerable<int> Active => Enumerable.Range(0, 4).Where(i => Seats[i] != null);
     static int Next(int s) { do s = (s + 1) % 4; while (Seats[s] == null); return s; }
@@ -35,7 +36,7 @@ public class GameHub : Hub
         Reveal.Clear(); Trick.Clear(); Past.Clear(); Discards.Clear(); Points = 0; Done = false; Top = Gurka = Winner = -1; Count = 0;
         foreach (var i in Active) { Seats[i]!.Hand = Draw(7); Reveal[i] = Seats[i]!.Hand[6]; }
         Starter = Active.OrderByDescending(i => Reveal[i].R * 4 + Reveal[i].S).First();
-        Zl = Active.Where(i => Seats[i]!.Hand.All(c => c.R <= 10)).ToHashSet();
+        Zl = Active.Where(i => i != Starter && Seats[i]!.Hand.All(c => c.R <= 10)).ToHashSet();
         Phase = "exchange";
     }
     static void StartPlay() { Reveal.Clear(); Phase = "play"; Turn = Starter; Count = 0; }
@@ -115,22 +116,27 @@ public class GameHub : Hub
     public Task Exchange(int[] idx) => Run(() =>
     {
         if (Phase != "exchange" || Me() != Starter) return "Inte din tur.";
-        if (Zl.Count > 0) return "Väntar på Zlatan-beslut.";
         idx ??= Array.Empty<int>();
         if (idx.Distinct().Count() != idx.Length || idx.Any(i => i < 0 || i > 6)) return "Ogiltigt val.";
         if (idx.Length > Deck.Count) return $"Leken har bara {Deck.Count} kort kvar.";
+        ExIdx = idx; ExN = idx.Length;
+        if (ExN > 0 && Zl.Count > 0) { Phase = "zlatan"; return null; } // Zlatan-spelarna väljer innan bytet sker
+        DoExchange(); return null;
+    });
+
+    static void DoExchange()
+    {
         var h = Seats[Starter]!.Hand;
-        if (idx.Length > 0)
+        if (ExN > 0)
         {
-            var old = idx.Select(i => h[i]).ToList(); var nw = Draw(idx.Length);
-            for (int k = 0; k < idx.Length; k++) h[idx[k]] = nw[k];
+            var old = ExIdx.Select(i => h[i]).ToList(); var nw = Draw(ExN);
+            for (int k = 0; k < ExN; k++) h[ExIdx[k]] = nw[k];
             Discards.AddRange(old);
         }
-        ExN = idx.Length; RespFree = idx.Length > 0; // bytte startspelaren kort får övriga byta valfria kort; annars kasta alla / behålla
+        RespFree = ExN > 0; // bytte startspelaren kort får övriga byta valfria kort; annars kasta alla / behålla
         Reveal.Clear(); Phase = "respond"; Resp = new Queue<int>();
         for (int s = Next(Starter); s != Starter; s = Next(s)) Resp.Enqueue(s);
-        return null;
-    });
+    }
 
     public async Task Zlatan(bool take)
     {
@@ -138,14 +144,15 @@ public class GameHub : Hub
         await Run(() =>
         {
             int m = Me();
-            if (Phase != "exchange" || !Zl.Contains(m)) return "Du kan inte köra Zlatan nu.";
+            if (Phase != "zlatan" || !Zl.Contains(m)) return "Du kan inte köra Zlatan nu.";
             if (take)
             {
-                if (Deck.Count < 7) return "Leken räcker inte för 7 nya kort.";
+                if (Deck.Count - ExN < 7) return "Leken räcker inte för 7 nya kort."; // startspelarens byte måste rymmas
                 var old = Seats[m]!.Hand; Seats[m]!.Hand = Draw(7); Discards.AddRange(old);
                 n = Seats[m]!.Name;
             }
             Zl.Remove(m);
+            if (Zl.Count == 0) DoExchange();
             return null;
         });
         if (n != null) await Clients.All.SendAsync("chat", "Bordet", n + " körde Zlatan och fick 7 nya kort!");
