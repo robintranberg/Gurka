@@ -1,6 +1,9 @@
 {
   "name": "Gurka",
   "image": "mcr.microsoft.com/devcontainers/dotnet:8.0",
+  "features": {
+    "ghcr.io/devcontainers/features/sshd:1": { "version": "latest" }
+  },
   "forwardPorts": [5000],
   "portsAttributes": {
     "5000": { "label": "Gurka", "onAutoForward": "silent" }
