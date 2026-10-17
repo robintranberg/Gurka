@@ -19,7 +19,7 @@ public class Game
     public readonly List<string> Notes = new();  // meddelanden från bordet som hubben skickar i chatten efter anropet
     public List<Card> Deck = new();
     public Queue<int> Resp = new();
-    public string Phase = "lobby"; // lobby, exchange, zlatan, respond, play, over
+    public string Phase = "lobby"; // lobby, exchange, zlatan, respond, oneup, play, over
     public bool Done, RespFree;
     public long Ver; // versionsnummer så klienten kan ignorera tillstånd som kommer i fel ordning
     public int Starter, Turn, Count, Top = -1, Gurka = -1, Winner = -1, Points, ExN;
@@ -27,6 +27,12 @@ public class Game
     public HashSet<int> Zl = new(); // spelare utan kort över 10 som ännu inte valt Zlatan (7 nya kort före startbytet)
     public int[] ExIdx = Array.Empty<int>(); // korten startspelaren valt att byta, väntar på Zlatan-beslut
     public string? Last; // senaste händelsen, för animationer i klienten
+    // "1 upp" (startspelaren bytte exakt 1 kort): ägaren markerar ett kort som går till slasken, översta kortet vänds upp för alla
+    public int UpOwner = -1, UpAsk = -1, UpMark = -1; // UpAsk = den som får frågan i "offer"; UpMark = index där ersättningskortet hamnar
+    public string UpStage = ""; // pick (välj 1 upp/alla 7/behåll), decide (ägaren tar eller tackar nej), offer (UpAsk får frågan)
+    public Card? UpCard;        // det uppvända kortet (publikt); ligger kvar överst i leken (Deck[0]) tills det avgjorts
+    Card? upOwn;                // ägarens markerade kort (ligger i slasken, hemligt)
+    public HashSet<int> UpUsed = new(); // har haft eller förbrukat sin tur
 
     public readonly Random Rng;
     public Func<List<Card>> NewDeck; // tester kan ge en bestämd lek; korten delas 7 åt gången i platsordning från toppen
@@ -42,7 +48,7 @@ public class Game
     public bool Idle => Phase == "lobby" || Phase == "over";
     public int SeatOf(string id) => string.IsNullOrEmpty(id) ? -1 : Array.FindIndex(Seats, p => p != null && Eq(p.Id, id));
     public static bool Eq(string a, string b) => CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(a), Encoding.UTF8.GetBytes(b)); // tokens jämförs i konstant tid
-    public int CurTurn => Phase == "play" ? Turn : Phase == "exchange" ? Starter : Phase == "respond" && Resp.Count > 0 ? Resp.Peek() : -1;
+    public int CurTurn => Phase == "play" ? Turn : Phase == "exchange" ? Starter : Phase == "respond" && Resp.Count > 0 ? Resp.Peek() : Phase == "oneup" ? (UpStage == "offer" ? UpAsk : UpOwner) : -1;
     int Next(int s) { do s = (s + 1) % 4; while (Seats[s] == null); return s; }
     List<Card> Draw(int n) { var r = Deck.Take(n).ToList(); Deck.RemoveRange(0, n); return r; }
     bool Has(int m) => m >= 0 && m < 4 && Seats[m] != null;
@@ -60,7 +66,7 @@ public class Game
     void Deal()
     {
         Deck = NewDeck();
-        Reveal.Clear(); Ties.Clear(); Trick.Clear(); Past.Clear(); Discards.Clear(); Points = 0; Done = false; Top = Gurka = Winner = -1; Count = 0;
+        Reveal.Clear(); Ties.Clear(); Trick.Clear(); Past.Clear(); Discards.Clear(); UpClear(); Points = 0; Done = false; Top = Gurka = Winner = -1; Count = 0;
         foreach (var i in Active) { Seats[i]!.Hand = Draw(7); Reveal[i] = Seats[i]!.Hand[6]; }
         // högst visad valör börjar; vid lika drar just de ett nytt kort var (till slasken) tills en är ensam högst
         var t = Active.ToList(); var v = t.ToDictionary(i => i, i => Reveal[i]);
@@ -77,7 +83,8 @@ public class Game
         Phase = "exchange"; Last = "deal";
     }
     string Names(List<int> t) { var n = t.Select(i => Seats[i]!.Name).ToList(); return n.Count == 1 ? n[0] : string.Join(", ", n.Take(n.Count - 1)) + " och " + n[^1]; }
-    void StartPlay() { Reveal.Clear(); Ties.Clear(); Phase = "play"; Turn = Starter; Count = 0; }
+    void StartPlay() { Reveal.Clear(); Ties.Clear(); UpClear(); Phase = "play"; Turn = Starter; Count = 0; }
+    void UpClear() { UpOwner = UpAsk = UpMark = -1; UpStage = ""; UpCard = upOwn = null; UpUsed.Clear(); }
     void Finish()
     {
         Phase = "over";
@@ -117,7 +124,7 @@ public class Game
         {
             Phase = "lobby"; Trick.Clear(); Past.Clear(); Reveal.Clear(); Ties.Clear(); Done = false; n = n.TrimEnd('.') + " – spelet avbröts.";
             foreach (var p in Seats) p?.Hand.Clear(); // inga gamla kort i lobbyn
-            Deck.Clear(); Discards.Clear(); Zl.Clear(); Resp.Clear(); ExN = Count = 0; Top = -1;
+            Deck.Clear(); Discards.Clear(); Zl.Clear(); Resp.Clear(); UpClear(); ExN = Count = 0; Top = -1;
         }
         else if (Phase == "over" && (i == Gurka || i == Winner)) Phase = "lobby"; // resultatet pekar annars på en tom plats
         Notes.Add(n);
@@ -144,6 +151,11 @@ public class Game
     void DoExchange()
     {
         var h = Seats[Starter]!.Hand;
+        if (ExN == 1) // 1 upp: startspelaren har redan markerat sitt kort
+        {
+            Zl.Clear(); Reveal.Clear(); Ties.Clear(); RespFree = false; Resp = new Queue<int>(); Phase = "oneup";
+            UpUsed.Clear(); UpFlip(Starter, ExIdx[0]); return;
+        }
         if (ExN > 0)
         {
             var old = ExIdx.Select(i => h[i]).ToList(); var nw = Draw(ExN);
@@ -172,6 +184,14 @@ public class Game
 
     public string? Respond(int m, bool all)
     {
+        if (Phase == "oneup") // 1 upp: i "pick" väljer övriga mellan 1 upp (UpPick), alla 7 (all) och behålla – samma knappar som respond
+        {
+            if (UpStage != "pick" || m != UpOwner) return "Inte din tur.";
+            if (all && Deck.Count < 7) return "Leken räcker inte för 7 nya kort.";
+            if (all) { var old = Seats[m]!.Hand; Seats[m]!.Hand = Draw(7); Discards.AddRange(old); Last = "swap"; }
+            Notes.Add(Seats[m]!.Name + (all ? " byter alla 7 kort." : " behåller sina kort."));
+            UpNext(); return null;
+        }
         if (Phase != "respond" || RespFree || Resp.Count == 0 || Resp.Peek() != m) return "Inte din tur.";
         if (all && Deck.Count < 7) return "Leken räcker inte för 7 nya kort.";
         Resp.Dequeue(); Last = "swap";
@@ -206,6 +226,75 @@ public class Game
         }
         if (Resp.Count == 0) StartPlay();
         return null;
+    }
+
+    static string Cn(Card c) => (c.R < 11 ? c.R.ToString() : new[] { "Kn", "D", "K", "E" }[c.R - 11]) + "♣♦♥♠"[c.S];
+
+    // ägaren lägger sitt markerade kort i slasken och vänder upp översta kortet i leken
+    void UpFlip(int m, int i)
+    {
+        var h = Seats[m]!.Hand; upOwn = h[i]; Discards.Add(h[i]); h.RemoveAt(i);
+        UpOwner = m; UpMark = i; UpAsk = -1; UpCard = Deck[0]; UpStage = "decide"; UpUsed.Add(m); Last = "upflip";
+        Notes.Add($"{Seats[m]!.Name} kör 1 upp – {Cn(UpCard)} vänds upp.");
+    }
+
+    // nästa spelare i turordning från startspelaren som inte haft eller förbrukat sin tur; annars börjar spelet
+    void UpNext()
+    {
+        UpAsk = -1; UpCard = upOwn = null; UpMark = -1;
+        for (int s = Next(UpOwner); s != Starter; s = Next(s))
+            if (!UpUsed.Contains(s)) { UpOwner = s; UpStage = "pick"; return; }
+        StartPlay();
+    }
+
+    // ägaren som tackat nej får nästa kort ur leken (dolt); är leken slut ett slumpat kort ur slasken, helst inte sitt eget, det uppvända eller tagarens slängda (då vet tagaren vad ägaren fick)
+    void UpRefill(Card? up, Card? gone = null)
+    {
+        var o = Seats[UpOwner]!; Card c;
+        if (Deck.Count > 0) { c = Draw(1)[0]; Notes.Add(o.Name + " får nästa kort ur leken."); }
+        else
+        {
+            var a = Discards.Where(x => x != upOwn && x != up && x != gone).ToArray(); if (a.Length == 0) a = Discards.ToArray();
+            c = a[Rng.Next(a.Length)]; Discards.Remove(c); Notes.Add(o.Name + " får ett kort ur slasken.");
+        }
+        o.Hand.Insert(UpMark, c); Last = "swap";
+    }
+
+    public string? UpPick(int m, int idx, bool dig)
+    {
+        if (Phase != "oneup" || UpStage != "pick" || m != UpOwner) return "Inte din tur.";
+        if (idx < 0 || idx >= Seats[m]!.Hand.Count) return "Ogiltigt val.";
+        if (dig)
+        {
+            if (Deck.Count > 0 || Discards.Count == 0) return "Du kan inte gräva i slasken nu.";
+            var h = Seats[m]!.Hand; var a = Discards.ToArray(); var c = a[Rng.Next(a.Length)];
+            Discards.Remove(c); Discards.Add(h[idx]); h[idx] = c; UpUsed.Add(m); Last = "swap";
+            Notes.Add(Seats[m]!.Name + " gräver i slasken."); UpNext(); return null;
+        }
+        if (Deck.Count == 0) return "Leken är slut: gräv i slasken (1 kort) eller behåll.";
+        UpFlip(m, idx); return null;
+    }
+
+    public string? UpTake(int m, bool take, int idx)
+    {
+        if (Phase != "oneup") return "Inte din tur.";
+        if (UpStage == "decide")
+        {
+            if (m != UpOwner) return "Inte din tur.";
+            if (take) { Seats[m]!.Hand.Insert(UpMark, Draw(1)[0]); Notes.Add(Seats[m]!.Name + " tar kortet."); Last = "swap"; UpNext(); return null; }
+            Notes.Add(Seats[m]!.Name + " tackar nej."); Last = "uppass"; UpStage = "offer"; UpAsk = Next(UpOwner); return null;
+        }
+        if (UpStage != "offer" || m != UpAsk) return "Inte din tur.";
+        if (take)
+        {
+            var h = Seats[m]!.Hand; if (idx < 0 || idx >= h.Count) return "Ogiltigt val.";
+            var gone = h[idx]; Discards.Add(gone); h[idx] = Draw(1)[0]; UpUsed.Add(m); // hade spelaren inte haft sin tur är den förbrukad
+            Notes.Add(Seats[m]!.Name + " tar kortet."); UpRefill(null, gone); UpNext(); return null;
+        }
+        Notes.Add(Seats[m]!.Name + " tackar nej."); Last = "uppass";
+        UpAsk = Next(UpAsk);
+        if (UpAsk != UpOwner) return null;
+        Notes.Add("Ingen tog kortet."); var up = Draw(1)[0]; Discards.Add(up); UpRefill(up); UpNext(); return null;
     }
 
     public string? Play(int m, int[]? idx)
@@ -250,6 +339,8 @@ public class Game
         // vem som kan köra Zlatan avslöjar svaga händer: varje klient får bara veta om sig själv, plus hur många som väntar
         zl = Phase == "zlatan" && Zl.Contains(you) ? new List<int> { you } : new List<int>(), zlMe = Phase == "zlatan" && Zl.Contains(you), zlN = Phase == "zlatan" ? Zl.Count : 0,
         turn = CurTurn, room, last = Last,
+        up = Phase != "oneup" ? null : new { owner = UpOwner, stage = UpStage, card = UpCard == null ? null : new { r = UpCard.R, s = UpCard.S }, asking = UpAsk, used = UpUsed.OrderBy(i => i).ToList(),
+            mark = you == UpOwner && UpStage != "pick" ? UpMark : -1 },
         seats = Enumerable.Range(0, 4).Select(i => Seats[i] == null ? (object?)null : new { seat = i, name = Seats[i]!.Name, n = Seats[i]!.Hand.Count, score = Seats[i]!.Score, on = Seats[i]!.Gone == null,
             grace = Seats[i]!.Gone is { } g ? Math.Max(0, (int)Math.Ceiling((Grace - (DateTime.UtcNow - g)).TotalSeconds)) : 0 }).ToList(),
         hand = you >= 0 ? (object?)Seats[you]!.Hand.Select(c => new { r = c.R, s = c.S }).ToList() : null,

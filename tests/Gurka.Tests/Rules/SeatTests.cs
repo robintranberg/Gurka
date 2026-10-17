@@ -143,11 +143,12 @@ public class SeatTests
     [InlineData("exchange")]
     [InlineData("zlatan")]
     [InlineData("respond")]
+    [InlineData("oneup")]
     public void Lämna_i_varje_fas_avbryter_spelet(string phase)
     {
         var t = Table.Seated(3).Deal(["2k 3k 4k 5k 6k 7k As", "2r 3r 4r 5r 6r 7r 8r", "2h 3h 4h 5h 6h 7h Qh"]);
-        if (phase != "exchange") Assert.Null(t.G.Exchange(0, [0]));
-        if (phase == "respond") Assert.Null(t.G.Zlatan(1, false));
+        if (phase != "exchange") Assert.Null(t.G.Exchange(0, phase == "oneup" ? [0] : [0, 1])); // ett bytt kort ger 1 upp
+        if (phase is "respond" or "oneup") Assert.Null(t.G.Zlatan(1, false));
         Assert.Equal(phase, t.G.Phase);
         t.G.Leave(2);
         Assert.Equal("lobby", t.G.Phase);

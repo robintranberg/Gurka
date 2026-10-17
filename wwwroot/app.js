@@ -88,8 +88,11 @@ let LS=null,LSs=null;
 function legalSets(){if(LSs===S)return LS;const n=S.hand.length,o=[];
  for(let m=1;m<1<<n;m++){const ix=[];for(let i=0;i<n;i++)if(m>>i&1)ix.push(i);if(ix.length<=4&&legal(ix)>=0)o.push(ix)}LSs=S;return LS=o}
 const fits=x=>legalSets().some(m=>[...x].every(j=>m.includes(j)));
-const picking=()=>S&&myTurn()&&(S.phase==='exchange'||S.phase==='play'||S.phase==='respond'&&S.free);
-const pickMax=()=>S.phase==='exchange'?Math.min(7,S.deck):S.exn;
+const picking=()=>S&&myTurn()&&(S.phase==='exchange'||S.phase==='play'||S.phase==='respond'&&S.free||S.phase==='oneup'&&(S.up?.stage==='pick'||S.up?.stage==='offer'&&upY));
+const pickMax=()=>S.phase==='exchange'?Math.min(7,S.deck):S.phase==='oneup'?1:S.exn;
+// 1 upp: up={owner,stage:pick|decide|offer,card,asking,used,mark}. upY = du har svarat ja och väljer kortet du slänger
+let upY=false;const U=()=>S.phase==='oneup'&&S.up?S.up:null;
+const rel=i=>(i-S.starter+4)%4,spent=(u,i)=>u.used.includes(i)&&rel(i)>rel(u.owner); // tog upp-kortet innan sin tur
 
 // ---------- rendering ----------
 function layout(s){ // placerar spelarna runt bordet, du längst ner
@@ -103,15 +106,16 @@ function snapR(){const r={h:{},p:{},t:[]};if(RM.matches)return r;
 function render(p){
  const s=S,r=snapR(),pos=layout(s),h=s.hand||[],cnt=s.seats.filter(x=>x).length,inGame=game();
  const hsig=h.map(key).join();if(!p||hsig!==(p.hand||[]).map(key).join()){sel.clear();
-  if(p&&p.hand&&['exchange','zlatan','respond'].includes(s.phase)){const o=new Set(p.hand.map(key));h.forEach(c=>{if(!o.has(key(c))&&p.hand.length)fresh.add(key(c))})} // nya kort efter byte
+  if(p&&p.hand&&['exchange','zlatan','respond','oneup'].includes(s.phase)){const o=new Set(p.hand.map(key));h.forEach(c=>{if(!o.has(key(c))&&p.hand.length)fresh.add(key(c))})} // nya kort efter byte
   if(s.phase==='exchange'&&p&&p.phase!=='exchange'||s.phase==='play'&&p&&h.length<(p.hand||[]).length||!inGame)fresh.clear()}
+ if(!(U()?.stage==='offer'&&s.up.asking===s.you))upY=false;
  document.body.dataset.phase=s.phase;
- $('status').textContent=({lobby:()=>`${cnt}/4 vid bordet`,exchange:()=>`${who(s.starter)} ${s.tie?.length?'vann avgörandet':'har högst kort'} och börjar`,zlatan:()=>'Zlatan-läge',respond:()=>s.turn>=0?`${who(s.turn)} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`:'',play:()=>`${who(s.turn)} är på tur`,over:()=>'Omgången är slut'}[s.phase]||(()=>''))();
+ $('status').textContent=({lobby:()=>`${cnt}/4 vid bordet`,exchange:()=>`${who(s.starter)} ${s.tie?.length?'vann avgörandet':'har högst kort'} och börjar`,zlatan:()=>'Zlatan-läge',oneup:()=>{const u=s.up;return!u?'':u.stage==='pick'?`${who(u.owner)} väljer: 1 upp, byt 7 eller behåll`:u.stage==='decide'?`${who(u.owner)} funderar på upp-kortet`:`${who(u.asking)} får frågan om upp-kortet`},respond:()=>s.turn>=0?`${who(s.turn)} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`:'',play:()=>`${who(s.turn)} är på tur`,over:()=>'Omgången är slut'}[s.phase]||(()=>''))();
  // spelarskyltar
  const pl={top:'',left:'',right:'',bottom:''};
- const tb=s.tie||[];
+ const tb=s.tie||[],u=U();
  s.seats.forEach((q,i)=>{if(!q)return;const rv=s.reveal.find(x=>x.seat===i),me=i===s.you,st=i===s.starter&&inGame;
-  pl[pos[i]]=`<div class="plate s${i} ${s.turn===i&&inGame?'turn':''} ${me?'you':''} ${q.on===false?'off':''}" data-s="${i}"><span class="av" aria-hidden="true">${ini(q.name)}</span><div class="pi"><div class="pn">${esc(q.name)}${me?' (du)':''}</div>${q.on===false?`<div class="pc x" title="Frånkopplad – platsen hålls en stund">⏳ <span class="gr" data-s="${i}">${+q.grace} s</span> <span class="sr">kvar innan platsen släpps</span></div>`:`<div class="pc">${+q.score} p · ${+q.n} kort${st?' · <span class="st" title="Startspelare">★</span>':''}</div>`}</div><div class="backs">${rv?card(rv,'sm in'+(i===s.starter&&!tb.length?' hi':''))+tbk(tb.filter(x=>x.seat===i),i===s.starter):'<span class="back"></span>'.repeat(Math.min(+q.n||0,13))}</div></div>`});
+  pl[pos[i]]=`<div class="plate s${i} ${s.turn===i&&inGame?'turn':''} ${u&&spent(u,i)?'sp':''} ${me?'you':''} ${q.on===false?'off':''}" data-s="${i}"><span class="av ${u&&u.used.includes(i)?'ud':''}" aria-hidden="true">${ini(q.name)}</span><div class="pi"><div class="pn">${esc(q.name)}${me?' (du)':''}${u&&u.used.includes(i)?`<span class="sr">, ${spent(u,i)?'turen förbrukad':'har haft sin tur'}</span>`:''}</div>${q.on===false?`<div class="pc x" title="Frånkopplad – platsen hålls en stund">⏳ <span class="gr" data-s="${i}">${+q.grace} s</span> <span class="sr">kvar innan platsen släpps</span></div>`:`<div class="pc">${+q.score} p · ${+q.n} kort${st?' · <span class="st" title="Startspelare">★</span>':''}</div>`}</div><div class="backs">${rv?card(rv,'sm in'+(i===s.starter&&!tb.length?' hi':''))+tbk(tb.filter(x=>x.seat===i),i===s.starter):'<span class="back"></span>'.repeat(Math.min(+q.n||0,13))}</div></div>`});
  for(const k in pl)if(put($('p-'+k),pl[k]))$('p-'+k).querySelectorAll('.backs').forEach(b=>{const n=b.children.length;[...b.children].forEach((x,k)=>x.style.setProperty('--k',k-(n-1)/2))});
  // sticket
  const tp=s.trick;
@@ -131,6 +135,9 @@ function msg(s){
  if(s.phase==='over')return`<div class="res"><span class="g">🥒 ${esc(who(s.gurka))} fick gurkan <small>(−${+s.points})</small></span><span class="w">🏆 ${esc(who(s.winner))} vinner <small>(+${+s.points})</small></span></div>`;
  if(s.phase==='exchange')return`${esc(who(s.starter))} ${s.tie?.length?'vann avgörandet':'fick högst kort'} och börjar<span class="sub">${s.starter===s.you?'Välj kort att byta':'Byter kort…'}</span>`;
  if(s.phase==='zlatan')return`${esc(who(s.starter))} byter ${+s.exn} kort<span class="sub">${s.zlMe?'Du kan köra Zlatan':`Väntar på Zlatan-beslut (${+s.zlN})`}</span>`;
+ if(s.phase==='oneup'&&s.up){const u=s.up,c=u.card,d=+s.deck-(c?1:0),dk=d<7?`<span class="sub">Leken: ${d} kort · slasken: ${+s.slask} kort</span>`:''; // uppvända kortet räknas i deck men ligger synligt
+  if(u.stage==='pick'||!c)return`${esc(who(u.owner))} väljer<span class="sub">1 upp, byt alla 7 eller behåll</span>${dk}`;
+  return`<div class="upw">${card(c,'up in')}<div class="ut"><span class="sr">Uppvänt kort: ${esc(cn(c))}. </span>${esc(who(u.owner))} körde 1 upp<span class="sub">${u.stage==='decide'?(u.owner===s.you?'Ta kortet eller tacka nej':'Tar kortet eller tackar nej…'):u.asking===s.you?'Vill du ta kortet?':`Vill ${esc(nm(u.asking))} ta kortet?`}</span>${dk}</div></div>`}
  if(s.phase==='respond')return s.deck<7?`<span class="sub">Leken: ${+s.deck} kort · slasken: ${+s.slask} kort</span>`:'';
  if(s.phase==='play'){if(s.done)return`${esc(who(s.top))} tog sticket<span class="sub">och spelar ut</span>`;if(!s.trick.length)return`${esc(who(s.turn))} spelar ut`}
  return''}
@@ -159,7 +166,8 @@ function acts(){
  else if(s.phase==='zlatan'&&s.zlMe){const ok=s.deck-s.exn>=7;
   a=`<p>${esc(nm(s.starter))} byter ${+s.exn} kort. Du har inget kort över 10 – <span class="hint">Zlatan!</span> Kasta alla och få 7 nya innan bytet?${ok?'':' (Leken räcker inte.)'}</p><button class="pri" data-a="zy" ${ok?'':'disabled'}>Zlatan – 7 nya</button><button data-a="zn">Behåll</button>`}
  else if(s.phase==='zlatan')a=`<p>Väntar på ${+s.zlN>1?+s.zlN+' spelare':'en spelare'} som får välja Zlatan – 7 nya kort innan bytet…</p>`;
- else if(s.phase==='exchange'&&my)a=`<p>Du börjar! Markera de kort du vill byta mot nya från leken – eller behåll alla.</p><button class="pri" data-a="x" ${sel.size>s.deck?'disabled':''}>${sel.size?`Byt ${sel.size} kort`:'Behåll alla'}</button>${sel.size?'<button data-a="clr">Avmarkera</button>':''}`;
+ else if(s.phase==='exchange'&&my)a=`<p>Du börjar! Markera de kort du vill byta mot nya från leken – eller behåll alla. Markerar du <span class="hint">exakt 1</span> kör du 1 upp.</p><button class="pri" data-a="x" ${sel.size>s.deck?'disabled':''}>${sel.size==1?'1 upp':sel.size?`Byt ${sel.size} kort`:'Behåll alla'}</button>${sel.size?'<button data-a="clr">Avmarkera</button>':''}`;
+ else if(s.phase==='oneup'&&my&&s.up)a=oneUp(s,s.up);
  else if(s.phase==='respond'&&my&&s.free)a=freeResp(s);
  else if(s.phase==='respond'&&my)a=`<p>${esc(nm(s.starter))} bytte inga kort. Kasta alla och få 7 nya, eller behåll?${s.deck<7?' (Leken räcker inte för 7 nya.)':''}</p><button class="pri" data-a="ra" ${s.deck<7?'disabled':''}>Kasta alla</button><button data-a="rk">Behåll</button>`;
  else if(s.phase==='play'&&my){
@@ -177,6 +185,14 @@ function acts(){
  const n2=$('nick2');if(n2&&!n2.value)n2.value=ls.get('name','');
 }
 const game=()=>!['lobby','over'].includes(S.phase);
+function oneUp(s,u){const dk=+s.deck;
+ if(u.stage==='decide')return`<p>Du körde 1 upp. Ta kortet – eller tacka nej, så får övriga frågan och du får <span class="hint">nästa kort, dolt</span>.</p><button class="pri" data-a="ut">Ta kortet</button><button data-a="un">Tacka nej</button>`;
+ if(u.stage==='offer')return upY?`<p>Markera kortet du slänger i stället för ${esc(cn(u.card))}.</p><button class="pri" data-a="uy" ${sel.size==1?'':'disabled'}>Släng valt kort</button><button data-a="ub">Ångra</button>`
+  :`<p>${esc(nm(u.owner))} tackade nej. <span class="hint">Vill du ta kortet?</span>${u.used.includes(s.you)?'':' Då förbrukar du din tur.'}</p><button class="pri" data-a="uj">Ja</button><button data-a="un">Nej</button>`;
+ let b=`<p>${esc(nm(s.starter))} körde 1 upp. Markera ett kort och kör 1 upp, ${dk>=7?'byt alla 7 ':''}eller behåll.${dk<7?` Leken har ${dk} kort kvar.`:''}</p>`;
+ b+=dk>0?`<button class="pri" ${sel.size==1?'':'disabled'} data-a="up">1 upp</button>`:`<button class="pri" ${sel.size==1?'':'disabled'} data-a="ud">Gräv i slasken (1)</button>`;
+ if(dk>=7)b+=`<button data-a="ra">Byt alla 7</button>`;
+ return b+`<button data-a="rk">Behåll</button>`}
 function freeResp(s){const N=+s.exn,dk=+s.deck;
  let b=`<p>${esc(nm(s.starter))} bytte ${N} kort. Byt <span class="hint">exakt ${N}</span>${dk>=7&&N<7?', alla 7':''} eller inga.${dk<N?` Leken har bara ${dk} kort kvar.`:''}</p>`;
  if(dk>=N)b+=`<button class="pri" ${sel.size==N?'':'disabled'} data-a="w">Byt ${N} valda${sel.size&&sel.size!=N?` (${sel.size}/${N})`:''}</button>`;
@@ -223,8 +239,9 @@ function events(p,r){
  hn.forEach(e=>{const b=r.h[e.dataset.k];if(b)fly(e,b,{dur:300});else if(s.you>=0)fly(e,C,{dur:520,delay:90*k++,op:0,rot:-12,ease:'cubic-bezier(.2,.9,.3,1.15)'})});
  if(k>1)sfx('deal');
  // turordning och faser
- const mine=x=>x.you>=0&&(x.turn===x.you&&['exchange','respond','play'].includes(x.phase)||x.phase==='zlatan'&&x.zlMe);
+ const mine=x=>x.you>=0&&(x.turn===x.you&&['exchange','respond','oneup','play'].includes(x.phase)||x.phase==='zlatan'&&x.zlMe);
  if(mine(s)&&!(mine(p)&&p.phase===s.phase&&p.turn===s.turn)){sfx('turn');buzz(25);say('Din tur. '+$('actions').querySelector('p')?.textContent||'')}
+ const uc=U()?.card;if(uc&&!(p.phase==='oneup'&&p.up?.card&&key(p.up.card)===key(uc)&&p.up.owner===S.up.owner)){sfx('card');say(`${nm(S.up.owner)} körde 1 upp: ${cn(uc)} vänds upp.`)}
  if(s.phase==='exchange'&&p.phase!=='exchange')say(`Ny giv. ${who(s.starter)} börjar.`);
  if(s.phase==='over'&&p.phase!=='over'){
   const dr=draw(s),e=dr?{n:(hist.at(-1)?.n||0)+1,d:1}:{n:(hist.at(-1)?.n||0)+1,w:nm(s.winner),g:nm(s.gurka),p:+s.points};hist.push(e);hist=hist.slice(-20);ss.set('hist.'+room,JSON.stringify(hist));score();
@@ -251,7 +268,9 @@ function hideRes(){$('result').hidden=true;resOpen=false;if(!$('side').classList
 // ---------- knappar ----------
 const A={
  start:()=>{hideRes();call('Start')},x:()=>{call('Exchange',[...sel]);sel.clear()},clr:()=>{sel.clear();mark();acts()},
- zy:()=>call('Zlatan',true),zn:()=>call('Zlatan',false),ra:()=>call('Respond',true),rk:()=>call('Respond',false),
+ zy:()=>call('Zlatan',true),zn:()=>call('Zlatan',false),ra:()=>call('Respond',true),
+ up:()=>{call('UpPick',[...sel][0],false);sel.clear()},ud:()=>{call('UpPick',[...sel][0],true);sel.clear()},ut:()=>call('UpTake',true,-1),un:()=>{upY=false;call('UpTake',false,-1)},
+ uj:()=>{upY=true;sel.clear();mark();acts()},ub:()=>{upY=false;sel.clear();mark();acts()},uy:()=>{if(sel.size==1)call('UpTake',true,[...sel][0]);upY=false;sel.clear()},rk:()=>call('Respond',false),
  w:()=>{call('Swap',[...sel],false);sel.clear()},wd:()=>{call('Swap',[...sel],true);sel.clear()},wa:()=>call('Swap',[0,1,2,3,4,5,6],false),wk:()=>call('Swap',[],false),
  play:()=>{if(legal([...sel])>=0)call('PlayCards',[...sel])},
  sak:()=>{const h=S.hand;call('PlayCards',h.map((c,i)=>[c.r,i]).sort((a,b)=>a[0]-b[0]).slice(0,S.count).map(x=>x[1]))},

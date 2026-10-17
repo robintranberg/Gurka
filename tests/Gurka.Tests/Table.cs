@@ -56,6 +56,7 @@ public sealed class Table
     public string? Swap(int seat, string cards, bool dig = false) { var e = G.Swap(seat, Idx(seat, cards), dig); AssertConserved(); return e; }
 
     // Varje kort i leken ska finnas exakt en gång: i en hand, i leken, i slasken eller på bordet.
+    // 1 upp: det uppvända kortet ligger kvar överst i leken tills det avgjorts.
     public void AssertConserved()
     {
         var all = G.Seats.Where(p => p != null).SelectMany(p => p!.Hand)
@@ -66,5 +67,6 @@ public sealed class Table
         var dup = all.GroupBy(c => c).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
         Assert.True(dup.Count == 0, "Kort finns två gånger: " + Cards.Str(dup));
         Assert.Equal(52, all.Count);
+        if (G.UpCard is { } up) Assert.Equal(up, G.Deck[0]);
     }
 }

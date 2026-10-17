@@ -440,6 +440,31 @@ public class HubTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Ett_upp_via_hubben()
+    {
+        var (a, _) = await Player("R1", "Anna");
+        var (b, _) = await Player("R1", "Bert");
+        var code = await Code("R1");
+        lock (Lobby.L) Lobby.Rooms[code].G.NewDeck = () => Cards.Deck(["2k 3k 4k 5k 6k 7k As", "2r 3r 4r 5r 6r 7r Kr"], "Ah 8s");
+        await a.Conn.InvokeAsync("Start");
+        await a.WaitFor(s => Phase(s) == "exchange");
+        await a.Conn.InvokeAsync("Exchange", new[] { 0 });
+        var sb = await b.WaitFor(s => Phase(s) == "oneup");
+        var up = sb.GetProperty("up");
+        Assert.Equal("{\"r\":14,\"s\":2}", up.GetProperty("card").GetRawText()); // Ah syns för motspelaren
+        Assert.Equal(-1, up.GetProperty("mark").GetInt32());
+        await a.Conn.InvokeAsync("UpTake", false, 0);
+        await b.WaitFor(s => s.GetProperty("up").ValueKind == JsonValueKind.Object && s.GetProperty("up").GetProperty("asking").GetInt32() == 1);
+        await b.Conn.InvokeAsync("UpTake", true, 6);
+        var sa = await a.WaitFor(s => Phase(s) == "play");
+        sb = await b.WaitFor(s => Phase(s) == "play");
+        Assert.Equal("{\"r\":8,\"s\":3}", sa.GetProperty("hand")[0].GetRawText()); // 8s till Anna
+        Assert.DoesNotContain("{\"r\":8,\"s\":3}", sb.GetRawText());
+        Assert.Equal(JsonValueKind.Null, sa.GetProperty("up").ValueKind);
+        Assert.Empty(a.Errors); Assert.Empty(b.Errors);
+    }
+
+    [Fact]
     public async Task Flodskydd_stoppar_för_många_anrop()
     {
         var (a, _) = await Player("R1", "Anna");

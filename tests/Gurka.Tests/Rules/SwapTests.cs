@@ -98,8 +98,8 @@ public class SwapTests
     [Fact]
     public void Efter_sista_svaret_börjar_spelet_hos_startspelaren()
     {
-        var t = AfterStarterSwaps(1);
-        Assert.Null(t.G.Swap(1, [0], false));
+        var t = AfterStarterSwaps(2); // ett bytt kort ger 1 upp, se OneUpTests
+        Assert.Null(t.G.Swap(1, [0, 1], false));
         Assert.Null(t.G.Swap(2, null, false));
         Assert.Equal("play", t.G.Phase);
         Assert.Equal(0, t.G.Turn);

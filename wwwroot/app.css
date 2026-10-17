@@ -227,3 +227,8 @@ header{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:0}h1{font
 .code{font-family:ui-monospace,Consolas,monospace;letter-spacing:.12em;color:var(--brine2)}
 .s0{--c:var(--c0)}.s1{--c:var(--c1)}.s2{--c:var(--c2)}.s3{--c:var(--c3)} /* varje plats har sin färg */
 #result .small{font-size:13px;opacity:.75;margin-top:-4px}
+/* 1 upp: uppvända kortet mitt på bordet, diskret bock på dem som haft sin tur */
+.upw{display:flex;align-items:center;justify-content:center;gap:10px;text-align:left}
+.card.up{--cw:clamp(34px,min(var(--trick-cw),calc(100cqh/1.4 - 8px)),76px);box-shadow:0 0 0 3px var(--brine),0 0 16px var(--brine),0 4px 10px rgba(0,0,0,.4)}
+.av.ud::before{content:"✓";position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:50%;background:var(--panel);color:var(--dim);font:900 10px/15px system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1.5px var(--dim)}
+.plate.sp .av.ud::before{content:"–";color:var(--bad);box-shadow:0 0 0 1.5px var(--bad)}

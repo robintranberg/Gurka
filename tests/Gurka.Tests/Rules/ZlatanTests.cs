@@ -72,7 +72,7 @@ public class ZlatanTests
         Assert.Equal("Du kan inte köra Zlatan nu.", t.G.Zlatan(3, true));
         Assert.Equal("zlatan", t.G.Phase); // väntar på plats 1
         Assert.Null(t.G.Zlatan(1, true));
-        Assert.Equal("respond", t.G.Phase);
+        Assert.Equal("oneup", t.G.Phase); // ett bytt kort: 1 upp efter Zlatan
     }
 
     [Fact]

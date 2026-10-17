@@ -53,7 +53,7 @@ public class PrivacyTests
         var t = Four();
         Assert.Null(t.G.Exchange(0, idx));
         if (t.G.Phase == "zlatan") { Assert.Null(t.G.Zlatan(1, false)); Assert.Null(t.G.Zlatan(3, false)); }
-        Assert.Equal("respond", t.G.Phase);
+        Assert.Equal(idx.Length == 1 ? "oneup" : "respond", t.G.Phase); // ett bytt kort ger 1 upp
         Assert.Empty(t.G.Zl);
         for (int i = -1; i < 4; i++) Assert.Empty(Ints(View(t.G, i), "zl"));
     }

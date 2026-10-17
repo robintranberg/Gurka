@@ -77,6 +77,8 @@ public class GameHub(Lobby lb) : Hub
     public Task Exchange(int[] idx) => Run((r, m) => r.G.Exchange(m, idx));
     public Task Zlatan(bool take) => Run((r, m) => r.G.Zlatan(m, take));
     public Task Respond(bool all) => Run((r, m) => r.G.Respond(m, all));
+    public Task UpPick(int idx, bool dig) => Run((r, m) => r.G.UpPick(m, idx, dig));
+    public Task UpTake(bool take, int idx) => Run((r, m) => r.G.UpTake(m, take, idx));
     public Task Swap(int[] idx, bool dig) => Run((r, m) => r.G.Swap(m, idx, dig));
     public Task PlayCards(int[] idx) => Run((r, m) => r.G.Play(m, idx));
 

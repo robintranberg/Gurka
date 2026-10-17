@@ -17,6 +17,8 @@ Testmönster som visat sig fungera (2026-10-16):
 - Klientens regelspegel (legal/legalSets i wwwroot/app.js) testas differentiellt: ett C#-program låter Game.Play avgöra varje delmängd av handen i slumpade positioner (spelar om dragen från bestämd lek, eftersom Game saknar klon) och skriver JSONL. Node klipper ut regelblocket ur app.js och jämför. Mutera för att se att jämförelsen fångar fel.
 - Program.cs har hårdkodad UseUrls(0.0.0.0:5000), så --urls och ASPNETCORE_URLS ignoreras. En testserver hamnar på 5000; kontrollera att porten är ledig och stoppa bara din egen process.
 - Stoppa aldrig processer med mönster på kommandoraden. Spara PID när servern startas och stoppa just den PID:en. Ett filter på '*scratchpad*srv*' träffade 2026-10-16 troligen även frontends testserver. Säg till frontend innan klienttester så att port och bord samordnas (taket är 3 bord och 8 anslutningar per IP).
+- Slumpregler (kort ur slasken) testas med en [Fact] som loopar över 200 frön och kontrollerar vad som INTE får väljas. Med 30 frön som Theory fångade bara 1 av 30 fall mutanten (undantaget träffas med p≈1/24 per frö), vilket är för tunt. Räkna på träffsannolikheten innan du väljer antal frön. Metoden som loopar får inte ha samma namn som testet (xUnit1024).
+- 1 upp-fasen: `UpCard` ligger kvar som `Deck[0]` tills det avgjorts. AssertConserved kontrollerar det. Ägaren har 6 kort i decide/offer.
 
 **Why:** Sparar tid nästa gång sviten ska utökas.
 **How to apply:** Lägg nya regeltester i tests/Gurka.Tests/Rules med Table-hjälparen; se även [[recurring-issues]].

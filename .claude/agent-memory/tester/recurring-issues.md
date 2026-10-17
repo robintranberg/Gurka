@@ -14,6 +14,8 @@ metadata:
 
 - Egna testdatafel: dubbla kort mellan hand och `next` (Cards.Deck kastar – bra) och fel antagande om vem som drar vad. Mutationskoll avslöjade 2026-10-17 ett test som inte testade det det påstod (Zlatan-avgörandekort). Kör alltid mutationer på ny regel.
 - Developer kan lägga till extra tömning utöver kontraktet (Ties töms även vid respond, inte bara StartPlay) – ger ekvivalenta mutanter; fråga hellre än att anta fel.
+- Developer kan avvika från sitt eget kontrakt under implementationen (2026-10-17, 1 upp: det uppvända kortet blev kvar som Deck[0] i stället för att dras). Skriv invarianter så att de är lätta att byta (en rad i AssertConserved) och läs om koden innan du rapporterar ett fel mot kontraktet.
+- Mutanter som överlever beror oftast på att testdatan bara använder index 0 (markering/insättning). Variera index i minst ett test per regel.
 
 **Why:** Ger fokus nästa gång: var fel brukar gömma sig och vad som orsakar omarbete.
 **How to apply:** Testa avbrott/återställning, View-sekretess och kantfall i lobby/anslutning extra noga; se [[test-patterns]].
