@@ -44,5 +44,6 @@ Varje skript skriver `Inga fel.` (eller `problem: 0` för `ovl.js`) när allt ä
 ## Att tänka på
 
 - Vänta cirka 45 sekunder mellan körningarna. Alla klienter kommer från samma IP och annars slår flodskyddet till (högst 3 bord och 8 anslutningar per IP).
+- `ver.js` fall F behöver en server från före versionshandslaget som serverar dagens klientfiler, t.ex. `git archive 7797e83` uppackad och byggd, startad med `--urls http://127.0.0.1:5078 --contentRoot <mappen> --webroot <repo>/wwwroot`. Kör sedan `node ver.js http://127.0.0.1:5078`.
 - Mot en Codespaces-länk (`GURKA_URL=https://...app.github.dev`) klickar skripten automatiskt bort varningssidan "Codespaces Access Port".
 - Fixturerna är genererade från `Game.View` och ska genereras om om View ändras.

@@ -20,6 +20,8 @@ Testmönster som visat sig fungera (2026-10-16):
 - Slumpregler (kort ur slasken) testas med en [Fact] som loopar över 200 frön och kontrollerar vad som INTE får väljas. Med 30 frön som Theory fångade bara 1 av 30 fall mutanten (undantaget träffas med p≈1/24 per frö), vilket är för tunt. Räkna på träffsannolikheten innan du väljer antal frön. Metoden som loopar får inte ha samma namn som testet (xUnit1024).
 - 1 upp-fasen: `UpCard` ligger kvar som `Deck[0]` tills det avgjorts. AssertConserved kontrollerar det. Ägaren har 6 kort i decide/offer.
 - View-fixturer till frontend: generera JSON direkt från `Game.View(seat)` i ett scratch-test (samma objekt som hubben skickar, bara v=0) och namnge filerna efter fas/stage, deck och perspektiv. Det avslöjade 2026-10-17 felaktiga knapptexter vid tom lek i klienten. Erbjud det vid nya faser och kantfall.
+- Starta testservrar från PowerShell med Start-Process -PassThru och spara $p.Id. `kill $!` i Git Bash stoppar inte Windows-processen (fel PID), och då lever den gamla servern kvar på porten. Kontrollera Path innan Stop-Process.
+- "Gammal server, ny klient": bygg en äldre commit via `git archive <sha>` i scratchpad och starta med `--webroot <repo>/wwwroot`. Utan det serverar den gamla servern sin gamla klient och testet mäter fel sak.
 
 **Why:** Sparar tid nästa gång sviten ska utökas.
 **How to apply:** Lägg nya regeltester i tests/Gurka.Tests/Rules med Table-hjälparen; se även [[recurring-issues]].
