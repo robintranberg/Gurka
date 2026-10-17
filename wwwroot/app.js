@@ -92,6 +92,7 @@ const picking=()=>S&&myTurn()&&(S.phase==='exchange'||S.phase==='play'||S.phase=
 const pickMax=()=>S.phase==='exchange'?Math.min(7,S.deck):S.phase==='oneup'?1:S.exn;
 // 1 upp: up={owner,stage:pick|decide|offer,card,asking,used,mark}. upY = du har svarat ja och väljer kortet du slänger
 let upY=false;const U=()=>S.phase==='oneup'&&S.up?S.up:null;
+const upOpts=d=>d>=7?'1 upp, byt alla 7 eller behåll':d>0?'1 upp eller behåll':'gräv i slasken (1 kort) eller behåll'; // leken styr valen i pick
 const rel=i=>(i-S.starter+4)%4,spent=(u,i)=>u.used.includes(i)&&rel(i)>rel(u.owner); // tog upp-kortet innan sin tur
 
 // ---------- rendering ----------
@@ -110,7 +111,7 @@ function render(p){
   if(s.phase==='exchange'&&p&&p.phase!=='exchange'||s.phase==='play'&&p&&h.length<(p.hand||[]).length||!inGame)fresh.clear()}
  if(!(U()?.stage==='offer'&&s.up.asking===s.you))upY=false;
  document.body.dataset.phase=s.phase;
- $('status').textContent=({lobby:()=>`${cnt}/4 vid bordet`,exchange:()=>`${who(s.starter)} ${s.tie?.length?'vann avgörandet':'har högst kort'} och börjar`,zlatan:()=>'Zlatan-läge',oneup:()=>{const u=s.up;return!u?'':u.stage==='pick'?`${who(u.owner)} väljer: 1 upp, byt 7 eller behåll`:u.stage==='decide'?`${who(u.owner)} funderar på upp-kortet`:`${who(u.asking)} får frågan om upp-kortet`},respond:()=>s.turn>=0?`${who(s.turn)} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`:'',play:()=>`${who(s.turn)} är på tur`,over:()=>'Omgången är slut'}[s.phase]||(()=>''))();
+ $('status').textContent=({lobby:()=>`${cnt}/4 vid bordet`,exchange:()=>`${who(s.starter)} ${s.tie?.length?'vann avgörandet':'har högst kort'} och börjar`,zlatan:()=>'Zlatan-läge',oneup:()=>{const u=s.up;return!u?'':u.stage==='pick'?`${who(u.owner)} väljer: ${upOpts(+s.deck)}`:u.stage==='decide'?`${who(u.owner)} funderar på upp-kortet`:`${who(u.asking)} får frågan om upp-kortet`},respond:()=>s.turn>=0?`${who(s.turn)} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`:'',play:()=>`${who(s.turn)} är på tur`,over:()=>'Omgången är slut'}[s.phase]||(()=>''))();
  // spelarskyltar
  const pl={top:'',left:'',right:'',bottom:''};
  const tb=s.tie||[],u=U();
@@ -136,7 +137,7 @@ function msg(s){
  if(s.phase==='exchange')return`${esc(who(s.starter))} ${s.tie?.length?'vann avgörandet':'fick högst kort'} och börjar<span class="sub">${s.starter===s.you?'Välj kort att byta':'Byter kort…'}</span>`;
  if(s.phase==='zlatan')return`${esc(who(s.starter))} byter ${+s.exn} kort<span class="sub">${s.zlMe?'Du kan köra Zlatan':`Väntar på Zlatan-beslut (${+s.zlN})`}</span>`;
  if(s.phase==='oneup'&&s.up){const u=s.up,c=u.card,d=+s.deck-(c?1:0),dk=d<7?`<span class="sub">Leken: ${d} kort · slasken: ${+s.slask} kort</span>`:''; // uppvända kortet räknas i deck men ligger synligt
-  if(u.stage==='pick'||!c)return`${esc(who(u.owner))} väljer<span class="sub">1 upp, byt alla 7 eller behåll</span>${dk}`;
+  if(u.stage==='pick'||!c)return`${esc(who(u.owner))} väljer<span class="sub">${upOpts(+s.deck)}</span>${dk}`;
   return`<div class="upw">${card(c,'up in')}<div class="ut"><span class="sr">Uppvänt kort: ${esc(cn(c))}. </span>${esc(who(u.owner))} körde 1 upp<span class="sub">${u.stage==='decide'?(u.owner===s.you?'Ta kortet eller tacka nej':'Tar kortet eller tackar nej…'):u.asking===s.you?'Vill du ta kortet?':`Vill ${esc(nm(u.asking))} ta kortet?`}</span>${dk}</div></div>`}
  if(s.phase==='respond')return s.deck<7?`<span class="sub">Leken: ${+s.deck} kort · slasken: ${+s.slask} kort</span>`:'';
  if(s.phase==='play'){if(s.done)return`${esc(who(s.top))} tog sticket<span class="sub">och spelar ut</span>`;if(!s.trick.length)return`${esc(who(s.turn))} spelar ut`}
@@ -186,10 +187,10 @@ function acts(){
 }
 const game=()=>!['lobby','over'].includes(S.phase);
 function oneUp(s,u){const dk=+s.deck;
- if(u.stage==='decide')return`<p>Du körde 1 upp. Ta kortet – eller tacka nej, så får övriga frågan och du får <span class="hint">nästa kort, dolt</span>.</p><button class="pri" data-a="ut">Ta kortet</button><button data-a="un">Tacka nej</button>`;
+ if(u.stage==='decide')return`<p>Du körde 1 upp. Ta kortet – eller tacka nej, så får övriga frågan och du får <span class="hint">${s.deck>1?'nästa kort, dolt':'ett dolt kort ur slasken'}</span>.</p><button class="pri" data-a="ut">Ta kortet</button><button data-a="un">Tacka nej</button>`;
  if(u.stage==='offer')return upY?`<p>Markera kortet du slänger i stället för ${esc(cn(u.card))}.</p><button class="pri" data-a="uy" ${sel.size==1?'':'disabled'}>Släng valt kort</button><button data-a="ub">Ångra</button>`
   :`<p>${esc(nm(u.owner))} tackade nej. <span class="hint">Vill du ta kortet?</span>${u.used.includes(s.you)?'':' Då förbrukar du din tur.'}</p><button class="pri" data-a="uj">Ja</button><button data-a="un">Nej</button>`;
- let b=`<p>${esc(nm(s.starter))} körde 1 upp. Markera ett kort och kör 1 upp, ${dk>=7?'byt alla 7 ':''}eller behåll.${dk<7?` Leken har ${dk} kort kvar.`:''}</p>`;
+ let b=`<p>${esc(nm(s.starter))} körde 1 upp. ${dk>0?`Markera ett kort och kör 1 upp, ${dk>=7?'byt alla 7 ':''}eller behåll.${dk<7?` Leken har ${dk} kort kvar.`:''}`:'Leken är slut: markera ett kort och gräv i slasken (1 slumpat kort), eller behåll.'}</p>`;
  b+=dk>0?`<button class="pri" ${sel.size==1?'':'disabled'} data-a="up">1 upp</button>`:`<button class="pri" ${sel.size==1?'':'disabled'} data-a="ud">Gräv i slasken (1)</button>`;
  if(dk>=7)b+=`<button data-a="ra">Byt alla 7</button>`;
  return b+`<button data-a="rk">Behåll</button>`}
