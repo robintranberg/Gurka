@@ -30,9 +30,10 @@ async function run(br, name, base, { build, noSS } = {}, want) {
   await run(br, 'A lika', BASE, {}, { loads: 1, banner: false });
   await run(br, 'B gammal sida (fel bara 1:a)', BASE, { build: n => n === 1 ? OLD : null }, { loads: 2, banner: false });
   await run(br, 'C gammal process (alltid fel)', BASE, { build: () => OLD }, { loads: 2, banner: true });
-  await run(br, 'D build.js 404', BASE, { build: () => 404 }, { loads: 1, banner: false });
+  await run(br, 'D build.js 404', BASE, { build: () => 404 }, { loads: 2, banner: false }); // 404 bevisar inget: en omladdning, sedan ingen banner
   await run(br, 'E sessionStorage kastar + fel', BASE, { build: () => OLD, noSS: true }, { loads: 1, banner: true });
-  if (process.argv[2]) await run(br, 'F server före handslaget', process.argv[2], {}, { loads: 1, banner: false });
+  await run(br, 'G sessionStorage kastar + 404', BASE, { build: () => 404, noSS: true }, { loads: 1, banner: false });
+  if (process.argv[2]) await run(br, 'F server före handslaget', process.argv[2], {}, { loads: 1, banner: true }); // Hello saknar build
   console.log(errs.length ? errs.join('\n') : 'Inga fel.');
   await br.close();
   process.exit(errs.length ? 1 : 0);

@@ -65,11 +65,12 @@ async function hello(code=room){
  if(r.seat>=0&&!wasSeated&&t)toast('Välkommen tillbaka – du har kvar din plats','ok');wasSeated=r.seat>=0;chkBuild(r.build)}
 // versionshandslag: build.js speglar filerna på disken nu, Hello den build som processen startade med.
 // Olika → ladda om en gång (spärrat i sessionStorage), kvarstår det kör servern gammal kod.
-function chkBuild(b){const mine=window.GURKA_BUILD,bn=$('verBanner'),old=m=>{bn.textContent=m;bn.hidden=false};
- if(typeof b!=='string'||typeof mine!=='string')return old('Servern kör en äldre version – starta om servern.');
+function chkBuild(b){const mine=window.GURKA_BUILD,bn=$('verBanner'),has=typeof mine==='string',old=()=>{bn.textContent='Servern kör en äldre version – starta om servern.';bn.hidden=false};
+ if(typeof b!=='string')return old(); // servern är äldre än handslaget
  if(b===mine){bn.hidden=true;return}
- const k=b+'/'+mine;let ok=false;try{if(sessionStorage.getItem('gurka-reload')!==k){sessionStorage.setItem('gurka-reload',k);ok=sessionStorage.getItem('gurka-reload')===k}}catch{}
- if(ok)location.reload();else old('Servern kör en äldre version – starta om servern.')}
+ // build.js kom inte fram (nätfel, proxy): försök en gång till, men ge inget råd om omstart utan bevis
+ const k=b+'/'+(has?mine:'-');let ok=false;try{if(sessionStorage.getItem('gurka-reload')!==k){sessionStorage.setItem('gurka-reload',k);ok=sessionStorage.getItem('gurka-reload')===k}}catch{}
+ if(ok)location.reload();else if(has)old()}
 async function online(){setConn('ok','Ansluten');lv=0;await hello()}
 async function connect(){setConn('wait','Ansluter…');try{await hub.start();await online()}catch{setConn('down','Ingen kontakt med servern – försöker igen…');setTimeout(connect,3000)}}
 hub.onreconnecting(()=>setConn('wait','Återansluter…'));

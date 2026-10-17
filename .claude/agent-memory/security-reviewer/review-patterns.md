@@ -21,6 +21,7 @@ Check every review for:
 8. Always run `node --check wwwroot/app.js` on frontend diffs. app.js is one flat script full of short const names (tie, card, mini); a new helper easily collides -> SyntaxError kills the whole client.
 9. Files change while teammates work in parallel: re-run `git diff`/`node --check` right before every SendMessage report, and state which state the report refers to (see [[feedback-versioning]]). Feedback from frontend 2026-10-17.
 
-10. `dotnet test` fails to build if the user's server is running (Gurka.exe locked). Don't kill it; leave the test run to tester and say so in the report.
+10. `dotnet test` fails to build if the user's server is running (Gurka.exe locked). Don't kill it: run `dotnet test tests/Gurka.Tests/Gurka.Tests.csproj -o <scratchpad>/testout` instead (developer tip, works).
 11. For new phases: check CurTurn, View (incl. you=-1), every Clear path (Deal/StartPlay/Leave) and that each loop has a guaranteed stop seat.
 12. Give file:line on EVERY point, INFO included (developer feedback 2026-10-17: makes them faster to act on).
+13. Every report should also say what I did NOT check (e.g. layout/a11y, runtime against a live server, proxy setup) so Team Lead sees where the boundary is (frontend feedback 2026-10-17).
