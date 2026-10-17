@@ -188,7 +188,7 @@ function freeResp(s){const N=+s.exn,dk=+s.deck;
 function mark(){
  const pk=picking(),play=pk&&S.phase==='play';
  document.querySelectorAll('#hand .card').forEach(c=>{const i=+c.dataset.i,on=sel.has(i);c.classList.toggle('sel',on);c.setAttribute('aria-pressed',pk?on:'false');
-  c.classList.toggle('off',play&&!on&&!fits(new Set([...sel,i]))&&!(S.count===1&&!lead()&&fits([i])));c.tabIndex=pk||c===document.activeElement?0:-1})}
+  const off=play&&!on&&!fits(new Set([...sel,i]))&&!(S.count===1&&!lead()&&fits([i]));c.classList.toggle('off',off);c.setAttribute('aria-disabled',off);c.tabIndex=pk||c===document.activeElement?0:-1})}
 function pick(i){
  if(!picking())return;
  if(sel.has(i))sel.delete(i);
