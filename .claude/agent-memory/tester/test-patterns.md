@@ -22,6 +22,7 @@ Testmönster som visat sig fungera (2026-10-16):
 - View-fixturer till frontend: generera JSON direkt från `Game.View(seat)` i ett scratch-test (samma objekt som hubben skickar, bara v=0) och namnge filerna efter fas/stage, deck och perspektiv. Det avslöjade 2026-10-17 felaktiga knapptexter vid tom lek i klienten. Erbjud det vid nya faser och kantfall.
 - Starta testservrar från PowerShell med Start-Process -PassThru och spara $p.Id. `kill $!` i Git Bash stoppar inte Windows-processen (fel PID), och då lever den gamla servern kvar på porten. Kontrollera Path innan Stop-Process.
 - "Gammal server, ny klient": bygg en äldre commit via `git archive <sha>` i scratchpad och starta med `--webroot <repo>/wwwroot`. Utan det serverar den gamla servern sin gamla klient och testet mäter fel sak.
+- När ett e2e-utfall avviker från min förväntan frågar jag ägaren i stället för att anpassa förväntningen. 2026-10-17 avslöjade det ett felaktigt råd i klienten (banner vid build.js 404), och frontend bekräftade att det var rätt sätt. Lägg också till kombinationsfall (t.ex. storage kastar + 404) som ägarens matris saknar.
 
 **Why:** Sparar tid nästa gång sviten ska utökas.
 **How to apply:** Lägg nya regeltester i tests/Gurka.Tests/Rules med Table-hjälparen; se även [[recurring-issues]].
