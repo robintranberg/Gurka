@@ -12,5 +12,8 @@ metadata:
 - Informationsläckor i View (t.ex. vilka som är Zlatan-kandidater) är en återkommande risk – testa vad varje plats ser, inte bara spelets tillstånd.
 - Regellogiken i Game.cs hade inga regelbuggar 2026-10-16; 9 mutationer fångades alla.
 
+- Egna testdatafel: dubbla kort mellan hand och `next` (Cards.Deck kastar – bra) och fel antagande om vem som drar vad. Mutationskoll avslöjade 2026-10-17 ett test som inte testade det det påstod (Zlatan-avgörandekort). Kör alltid mutationer på ny regel.
+- Developer kan lägga till extra tömning utöver kontraktet (Ties töms även vid respond, inte bara StartPlay) – ger ekvivalenta mutanter; fråga hellre än att anta fel.
+
 **Why:** Ger fokus nästa gång: var fel brukar gömma sig och vad som orsakar omarbete.
 **How to apply:** Testa avbrott/återställning, View-sekretess och kantfall i lobby/anslutning extra noga; se [[test-patterns]].

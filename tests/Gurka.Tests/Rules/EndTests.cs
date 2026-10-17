@@ -8,7 +8,7 @@ public class EndTests
     public static readonly string[] Simple = ["3k 3r 3h 3s Qk Qr As", "4k 4r 4h 4s 2k 2r Kr"];
 
     // spelar Simple till slut: sista sticket blir As (plats 0) mot sakat Kr (plats 1)
-    public static void PlayToEnd(Table t)
+    internal static void PlayToEnd(Table t)
     {
         t.Ok(0, "3k 3r 3h 3s");
         t.Ok(1, "4k 4r 4h 4s");
@@ -40,7 +40,7 @@ public class EndTests
     [Fact]
     public void Två_spelare_går_ut_på_samma_valör_oavgjort_utan_poäng()
     {
-        var t = Table.Playing("4k 4r 4h 4s 2k 2r Ah", "3k 3r 3h 3s Qk Qr As"); // plats 1 börjar
+        var t = Table.Playing("4k 4r 4h 4s 2k Ah 2r", "3k 3r 3h 3s Qk As Qr"); // plats 1 börjar (visar Qr mot 2r; essen ligger inte sjunde så att avgörande vid lika undviks)
         Assert.Equal(1, t.G.Turn);
         t.Ok(1, "3k 3r 3h 3s");
         t.Ok(0, "4k 4r 4h 4s");
@@ -90,7 +90,7 @@ public class EndTests
     {
         var t = Table.Playing(Simple);
         PlayToEnd(t); // plats 0: -70, plats 1: +70
-        t.Deal(["4k 4r 4h 4s 2k 2r Ah", "3k 3r 3h 3s Qk Qr As"]); // samma händer som i oavgjort-testet ovan
+        t.Deal(["4k 4r 4h 4s 2k Ah 2r", "3k 3r 3h 3s Qk As Qr"]); // samma händer som i oavgjort-testet ovan
         Assert.Null(t.G.Exchange(t.G.Starter, null));
         while (t.G.Phase == "respond") Assert.Null(t.G.Respond(t.G.Resp.Peek(), false));
         t.Ok(1, "3k 3r 3h 3s");

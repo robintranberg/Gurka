@@ -63,6 +63,9 @@ main{position:relative;display:flex;flex-direction:column;min-width:0;min-height
 .back{flex:none;width:20px;height:28px;border-radius:3px;margin-right:-11px;border:1px solid rgba(255,255,255,.55);background:radial-gradient(circle at 50% 50%,#9fd36a 0 2px,transparent 2.5px) 0 0/7px 7px,linear-gradient(160deg,#2f7a45,#1b4a2b);box-shadow:-1px 1px 3px rgba(0,0,0,.35);transform:rotate(calc(var(--k,0)*7deg));transform-origin:50% 140%}
 .backs:has(.card){height:auto;padding:0}
 .plate.you .backs:not(:has(.card)){display:none} /* din egen hand syns ju nedanför */
+.tb{display:flex;align-items:flex-end;margin-left:5px;padding-left:5px;border-left:1px dashed rgba(255,255,255,.35)} /* avgörandekort vid lika */
+.tb .mc{width:22px;height:31px;padding:2px 0 0 2px;font-size:10px;border-radius:4px;opacity:.8}.tb .mc i{font-size:11px}.tb .mc+.mc{margin-left:-8px}
+.tb .mc.hi{opacity:1;box-shadow:0 0 0 2px var(--brine),0 0 8px var(--brine)}
 
 /* sticket */
 #trick{grid-area:mid;min-width:0;min-height:0;display:grid;gap:4px;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:". top ." "left c right" ". bottom .";place-items:center}

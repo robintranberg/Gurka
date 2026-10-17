@@ -13,3 +13,4 @@ metadata:
 
 **Why:** these were user choices or hard platform limits found while building.
 **How to apply:** check this before changing visuals or connection code. Related: [[testing-setup]].
+- 2026-10-17 tie-break rule (user's rule): equal highest reveals draw extra cards until one is alone highest; server sends `tie:[{seat,r,s,round}]`. Shown as small `.mc` chips in a `.tb` group after the reveal card in each plate (dashed divider, winner's last chip gets the brine glow, reveal `hi` moves off when tie exists). Fits 360 px with 3 rounds without growing plates.

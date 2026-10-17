@@ -11,6 +11,8 @@ const ss={get(k){try{return sessionStorage.getItem('gurka.'+k)}catch{return null
 const ix=c=>`<span class="ix"><b>${RK(+c.r)}</b><i>${SU[c.s]||''}</i></span><span class="pip">${SU[c.s]||''}</span>`;
 const card=(c,x='')=>`<div class="card ${isRed(c)?'red':''} ${x}" data-k="${key(c)}">${ix(c)}</div>`;
 const mini=(c,sk)=>`<div class="mc ${isRed(c)?'red':''} ${sk?'sk':''}" title="${cn(c)}">${RK(+c.r)}<i>${SU[c.s]||''}</i></div>`;
+// avgörande vid lika visat kort: extrakorten per runda, vinnarens sista markeras
+const tbk=(t,w)=>t.length?`<div class="tb"><span class="sr">Avgörande:</span>${t.sort((a,b)=>a.round-b.round).map((c,k)=>`<div class="mc ${isRed(c)?'red':''} ${w&&k===t.length-1?'hi':''}" title="${esc(`Avgörande ${+c.round}: ${cn(c)}`)}">${RK(+c.r)}<i>${SU[c.s]||''}</i></div>`).join('')}</div>`:'';
 const ini=n=>esc([...String(n||'?').trim()][0]||'?').toUpperCase();
 
 // ---------- ljud (syntetiskt via Web Audio, inga filer) och haptik ----------
@@ -104,11 +106,12 @@ function render(p){
   if(p&&p.hand&&['exchange','zlatan','respond'].includes(s.phase)){const o=new Set(p.hand.map(key));h.forEach(c=>{if(!o.has(key(c))&&p.hand.length)fresh.add(key(c))})} // nya kort efter byte
   if(s.phase==='exchange'&&p&&p.phase!=='exchange'||s.phase==='play'&&p&&h.length<(p.hand||[]).length||!inGame)fresh.clear()}
  document.body.dataset.phase=s.phase;
- $('status').textContent=({lobby:()=>`${cnt}/4 vid bordet`,exchange:()=>`${who(s.starter)} har högst kort och börjar`,zlatan:()=>'Zlatan-läge',respond:()=>s.turn>=0?`${who(s.turn)} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`:'',play:()=>`${who(s.turn)} är på tur`,over:()=>'Omgången är slut'}[s.phase]||(()=>''))();
+ $('status').textContent=({lobby:()=>`${cnt}/4 vid bordet`,exchange:()=>`${who(s.starter)} ${s.tie?.length?'vann avgörandet':'har högst kort'} och börjar`,zlatan:()=>'Zlatan-läge',respond:()=>s.turn>=0?`${who(s.turn)} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`:'',play:()=>`${who(s.turn)} är på tur`,over:()=>'Omgången är slut'}[s.phase]||(()=>''))();
  // spelarskyltar
  const pl={top:'',left:'',right:'',bottom:''};
+ const tb=s.tie||[];
  s.seats.forEach((q,i)=>{if(!q)return;const rv=s.reveal.find(x=>x.seat===i),me=i===s.you,st=i===s.starter&&inGame;
-  pl[pos[i]]=`<div class="plate s${i} ${s.turn===i&&inGame?'turn':''} ${me?'you':''} ${q.on===false?'off':''}" data-s="${i}"><span class="av" aria-hidden="true">${ini(q.name)}</span><div class="pi"><div class="pn">${esc(q.name)}${me?' (du)':''}</div>${q.on===false?`<div class="pc x" title="Frånkopplad – platsen hålls en stund">⏳ <span class="gr" data-s="${i}">${+q.grace} s</span> <span class="sr">kvar innan platsen släpps</span></div>`:`<div class="pc">${+q.score} p · ${+q.n} kort${st?' · <span class="st" title="Startspelare">★</span>':''}</div>`}</div><div class="backs">${rv?card(rv,'sm in'+(i===s.starter?' hi':'')):'<span class="back"></span>'.repeat(Math.min(+q.n||0,13))}</div></div>`});
+  pl[pos[i]]=`<div class="plate s${i} ${s.turn===i&&inGame?'turn':''} ${me?'you':''} ${q.on===false?'off':''}" data-s="${i}"><span class="av" aria-hidden="true">${ini(q.name)}</span><div class="pi"><div class="pn">${esc(q.name)}${me?' (du)':''}</div>${q.on===false?`<div class="pc x" title="Frånkopplad – platsen hålls en stund">⏳ <span class="gr" data-s="${i}">${+q.grace} s</span> <span class="sr">kvar innan platsen släpps</span></div>`:`<div class="pc">${+q.score} p · ${+q.n} kort${st?' · <span class="st" title="Startspelare">★</span>':''}</div>`}</div><div class="backs">${rv?card(rv,'sm in'+(i===s.starter&&!tb.length?' hi':''))+tbk(tb.filter(x=>x.seat===i),i===s.starter):'<span class="back"></span>'.repeat(Math.min(+q.n||0,13))}</div></div>`});
  for(const k in pl)if(put($('p-'+k),pl[k]))$('p-'+k).querySelectorAll('.backs').forEach(b=>{const n=b.children.length;[...b.children].forEach((x,k)=>x.style.setProperty('--k',k-(n-1)/2))});
  // sticket
  const tp=s.trick;
@@ -126,7 +129,7 @@ function render(p){
 function msg(s){
  if(draw(s))return`<div class="res"><span class="w">🤝 Oavgjort</span><span class="sub">Ingen vinner – poängen står still</span></div>`;
  if(s.phase==='over')return`<div class="res"><span class="g">🥒 ${esc(who(s.gurka))} fick gurkan <small>(−${+s.points})</small></span><span class="w">🏆 ${esc(who(s.winner))} vinner <small>(+${+s.points})</small></span></div>`;
- if(s.phase==='exchange')return`${esc(who(s.starter))} fick högst kort och börjar<span class="sub">${s.starter===s.you?'Välj kort att byta':'Byter kort…'}</span>`;
+ if(s.phase==='exchange')return`${esc(who(s.starter))} ${s.tie?.length?'vann avgörandet':'fick högst kort'} och börjar<span class="sub">${s.starter===s.you?'Välj kort att byta':'Byter kort…'}</span>`;
  if(s.phase==='zlatan')return`${esc(who(s.starter))} byter ${+s.exn} kort<span class="sub">${s.zlMe?'Du kan köra Zlatan':`Väntar på Zlatan-beslut (${+s.zlN})`}</span>`;
  if(s.phase==='respond')return s.deck<7?`<span class="sub">Leken: ${+s.deck} kort · slasken: ${+s.slask} kort</span>`:'';
  if(s.phase==='play'){if(s.done)return`${esc(who(s.top))} tog sticket<span class="sub">och spelar ut</span>`;if(!s.trick.length)return`${esc(who(s.turn))} spelar ut`}

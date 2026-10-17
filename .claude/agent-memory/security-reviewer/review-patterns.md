@@ -17,3 +17,6 @@ Check every review for:
 
 6. Backend and frontend are built in parallel: check that client calls (hub.invoke names and arguments) actually match the hub signatures. Mismatches hide security features (reconnect/token) that look implemented on both sides.
 7. Order of checks in Attach-like functions: caps/limits must not run before the "is this an existing seated player" check, or else an attacker can lock out legitimate players.
+
+8. Always run `node --check wwwroot/app.js` on frontend diffs. app.js is one flat script full of short const names (tie, card, mini); a new helper easily collides -> SyntaxError kills the whole client.
+9. Files change while teammates work in parallel: re-run `git diff`/`node --check` right before every SendMessage report, and state which state the report refers to (see [[feedback-versioning]]). Feedback from frontend 2026-10-17.

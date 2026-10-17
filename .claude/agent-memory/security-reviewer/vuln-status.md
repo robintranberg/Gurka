@@ -21,9 +21,10 @@ Baseline 2026-10-16 (commit 5e79b10). B* = backend (developer), F* = frontend.
 - F2 LÅG-MEDEL: CDN without SRI. VERIFIED fixed: self-hosted lib/signalr.min.js, SHA-256 matches signalr@8.0.7 (e28a720a...).
 - F3 LÅG: esc() '. VERIFIED fixed.
 - F4 MEDEL: client token/API mismatch. VERIFIED fixed (Hello(t,code), server token stored, Join(n)).
+- F6 KRITISK (tillgänglighet) 2026-10-17: duplicate `const tie` in app.js (tie cards vs. draw text) -> SyntaxError, the whole client dead. VERIFIED fixed (renamed to tbk, node --check OK).
 - F5 LÅG: tokens in localStorage. CLOSED as deliberate design: 'toks' map TTL 10 min, cleared on Leave, server only accepts the current token (+Prev while disconnected).
 
-Non-issues (do not report): View sends only your own hand; reveal/past/trick are public by design; the server validates phase/turn/index/deck; no XSS in the baseline; name[..14] surrogate split gives U+FFFD (tested, no exception); Next() cannot loop forever.
+Non-issues (do not report): View sends only your own hand; reveal/past/trick are public by design; the server validates phase/turn/index/deck; no XSS in the baseline; name[..14] surrogate split gives U+FFFD (tested, no exception); Next() cannot loop forever. Tie-break (Game.Deal, 2026-10-17): Ties public by design, the loop breaks before Draw when the deck is short, Ties cleared in Deal/StartPlay/Leave; Ties is now also cleared at respond (line 155, verified).
 
 **Why:** avoid double-reporting. **How to apply:** update the status when a fix is verified. See [[review-patterns]].
 

@@ -21,6 +21,8 @@ metadata:
   - Taken per IP använder Net.Key (IPv6 grupperas per /64).
   - Röktest: Nodes WebSocket tar `{headers}` som andra argument.
   - Verifierat i ett riktigt codespace 2026-10-16 (Team Lead): Codespaces-proxyn ERSÄTTER X-Forwarded-For med klientens riktiga IP (en förfalskad header tas bort). Den skickar också X-Real-IP och X-Forwarded-Proto/Host. Taken per IP gäller alltså per riktig klient, och Net.Proxies behöver ingen extra betrodd hop för Codespaces.
+- Regel som användaren bestämt 2026-10-17 om vem som börjar: om flera har samma högsta visade valör drar just de ett kort var från Deck (i platsordning). Korten går till Discards och loggas i `Ties`. Detta upprepas tills en är ensam högst. Färgen avgör bara om leken tar slut. Lika på lägre valör spelar ingen roll. Zl räknas efter avgörandet.
+- C# tillåter inte att en lambda-parameter skuggar en lokal variabel i samma metod (CS0136). Ett exempel är lokalen `c` mot `c => c.R` i Deal. Välj lokala namn som inte krockar med befintliga lambdor.
 - Spelreglerna i Game.cs är facit. Användaren har sagt att reglerna inte får ändras på eget initiativ (2026-10-16).
 
 **Why:** De här kostade tid eller gav tysta fel under refaktoreringen 2026-10-16.

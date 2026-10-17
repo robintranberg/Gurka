@@ -12,6 +12,7 @@ public class Game
 {
     public readonly Pl?[] Seats = new Pl?[4];
     public readonly Dictionary<int, Card> Reveal = new();
+    public readonly List<(int Seat, Card Card, int Round)> Ties = new(); // kort som dragits för att avgöra lika visade kort (gick till slasken)
     public readonly List<Pay> Trick = new();
     public readonly List<List<Pay>> Past = new();
     public readonly List<Card> Discards = new(); // slasken: kastade kort är ute ur leken
@@ -59,13 +60,24 @@ public class Game
     void Deal()
     {
         Deck = NewDeck();
-        Reveal.Clear(); Trick.Clear(); Past.Clear(); Discards.Clear(); Points = 0; Done = false; Top = Gurka = Winner = -1; Count = 0;
+        Reveal.Clear(); Ties.Clear(); Trick.Clear(); Past.Clear(); Discards.Clear(); Points = 0; Done = false; Top = Gurka = Winner = -1; Count = 0;
         foreach (var i in Active) { Seats[i]!.Hand = Draw(7); Reveal[i] = Seats[i]!.Hand[6]; }
-        Starter = Active.OrderByDescending(i => Reveal[i].R * 4 + Reveal[i].S).First();
+        // högst visad valör börjar; vid lika drar just de ett nytt kort var (till slasken) tills en är ensam högst
+        var t = Active.ToList(); var v = t.ToDictionary(i => i, i => Reveal[i]);
+        for (int r = 1; ; r++)
+        {
+            int hi = t.Max(i => v[i].R); t = t.Where(i => v[i].R == hi).ToList();
+            if (t.Count == 1 || Deck.Count < t.Count) break;
+            Notes.Add("Lika visade kort – " + Names(t) + " drar ett nytt kort var.");
+            foreach (var i in t) { v[i] = Draw(1)[0]; Discards.Add(v[i]); Ties.Add((i, v[i], r)); }
+        }
+        Starter = t.OrderByDescending(i => v[i].S).First(); // leken slut (i praktiken omöjligt): färgen avgör
+        if (Ties.Count > 0) Notes.Add(Seats[Starter]!.Name + " fick högst och börjar.");
         Zl = Active.Where(i => i != Starter && Seats[i]!.Hand.All(c => c.R <= 10)).ToHashSet();
         Phase = "exchange"; Last = "deal";
     }
-    void StartPlay() { Reveal.Clear(); Phase = "play"; Turn = Starter; Count = 0; }
+    string Names(List<int> t) { var n = t.Select(i => Seats[i]!.Name).ToList(); return n.Count == 1 ? n[0] : string.Join(", ", n.Take(n.Count - 1)) + " och " + n[^1]; }
+    void StartPlay() { Reveal.Clear(); Ties.Clear(); Phase = "play"; Turn = Starter; Count = 0; }
     void Finish()
     {
         Phase = "over";
@@ -103,7 +115,7 @@ public class Game
         string n = Seats[i]!.Name + " lämnade bordet."; Seats[i] = null; Last = "leave";
         if (!Idle)
         {
-            Phase = "lobby"; Trick.Clear(); Past.Clear(); Reveal.Clear(); Done = false; n = n.TrimEnd('.') + " – spelet avbröts.";
+            Phase = "lobby"; Trick.Clear(); Past.Clear(); Reveal.Clear(); Ties.Clear(); Done = false; n = n.TrimEnd('.') + " – spelet avbröts.";
             foreach (var p in Seats) p?.Hand.Clear(); // inga gamla kort i lobbyn
             Deck.Clear(); Discards.Clear(); Zl.Clear(); Resp.Clear(); ExN = Count = 0; Top = -1;
         }
@@ -140,7 +152,7 @@ public class Game
         }
         Zl.Clear(); // ingen ska efteråt kunna se vem som saknade kort över 10
         RespFree = ExN > 0; // bytte startspelaren kort får övriga byta valfria kort; annars kasta alla / behålla
-        Reveal.Clear(); Phase = "respond"; Resp = new Queue<int>();
+        Reveal.Clear(); Ties.Clear(); Phase = "respond"; Resp = new Queue<int>();
         for (int s = Next(Starter); s != Starter; s = Next(s)) Resp.Enqueue(s);
     }
 
@@ -242,6 +254,7 @@ public class Game
             grace = Seats[i]!.Gone is { } g ? Math.Max(0, (int)Math.Ceiling((Grace - (DateTime.UtcNow - g)).TotalSeconds)) : 0 }).ToList(),
         hand = you >= 0 ? (object?)Seats[you]!.Hand.Select(c => new { r = c.R, s = c.S }).ToList() : null,
         reveal = Reveal.Select(k => new { seat = k.Key, r = k.Value.R, s = k.Value.S }).ToList(),
+        tie = Ties.Select(t => new { seat = t.Seat, r = t.Card.R, s = t.Card.S, round = t.Round }).ToList(),
         trick = Trick.Select(p => new { seat = p.Seat, sak = p.Sak, cards = p.Cards.Select(c => new { r = c.R, s = c.S }).ToList() }).ToList(),
         points = Points,
         past = Past.Select(t => t.Select(p => new { seat = p.Seat, sak = p.Sak, cards = p.Cards.Select(c => new { r = c.R, s = c.S }).ToList() }).ToList()).ToList()

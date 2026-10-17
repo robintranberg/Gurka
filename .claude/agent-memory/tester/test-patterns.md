@@ -6,10 +6,11 @@ metadata:
 ---
 
 Testmönster som visat sig fungera (2026-10-16):
-- Regler testas mot `Game` direkt (ingen hubb): `new Game(new Random(seed), () => deck)`. Leken delas 7 kort per aktiv plats i platsordning; det 7:e kortet visas och avgör startspelaren (valör*4+färg). Hjälparen `Cards.Deck(hands, next)` bygger en full 52-korts lek.
+- Regler testas mot `Game` direkt (ingen hubb): `new Game(new Random(seed), () => deck)`. Leken delas 7 kort per aktiv plats i platsordning; det 7:e kortet visas; högst valör börjar, vid lika högsta valör drar de lika ett kort var ur leken (till slasken, Game.Ties) – färgen avgör bara om leken tar slut (sedan 2026-10-17). Avgörandekorten styrs med `next:` i Table.Deal. Hjälparen `Cards.Deck(hands, next)` bygger en full 52-korts lek.
 - Kort som strängar "5h", "Ts", "As" (färger k r h s – INTE "d"; parsern kastar på okänt kort, gjorde den inte först och det gav tysta fel).
 - `Table.AssertConserved()` efter varje drag: alla 52 kort exakt en gång i händer/lek/slask/bord. Fångar byte- och slaskfel billigt.
-- Mutationskoll: kopiera Game.cs till scratchpad, ändra en regel med sed, kör sviten och se att något test faller. Görs i ett separat scratch-csproj som länkar Game.cs + testfilerna, så det går även när GameHub inte kompilerar.
+- Undvik oavsiktligt lika visade valörer i testhänder (t.ex. Ah/As som 7:e kort) – då dras extra kort och Deck/Discards ändras. Lägg hellre esset tidigare i handsträngen. Kolla gamla tester med ett skript som jämför 7:e kortens valör per Deal/Playing-anrop.
+- Mutationskoll (scratch-csproj med Compile Include av tests/Rules/*.cs, Table.cs, Cards.cs + kopia av Game.cs; Python-skript med (namn, gammal, ny)-par, assert att gammal förekommer exakt en gång): kopiera Game.cs till scratchpad, ändra en regel med sed, kör sviten och se att något test faller. Görs i ett separat scratch-csproj som länkar Game.cs + testfilerna, så det går även när GameHub inte kompilerar.
 - Integration: `WebApplicationFactory<Program>` + HubConnection med LongPolling och `server.CreateHandler()`. Ny factory per test = egen Lobby och eget flodskydd. Bord skapas med `NewRoom` innan `Hello`. Versionsnumret `v` räknas per bord – acceptera state när `room` ändras.
 - TestServer ger IP "?" för alla klienter, så IP-tak (8 anslutningar, 3 bord, 10 Hello-skur) delas av alla klienter i ett test.
 - Bygg med `dotnet test -o <scratchpad>/out` så låst bin/ inte stör.
