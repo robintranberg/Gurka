@@ -1,0 +1,14 @@
+{
+  "name": "gurka-e2e",
+  "private": true,
+  "description": "Klicktester av Gurka-klienten med puppeteer. Körs manuellt mot en startad server, inte av dotnet test.",
+  "scripts": {
+    "up": "node up.js",
+    "play": "node play.js",
+    "ovl": "node ovl.js",
+    "fix": "node fix.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.11.1"
+  }
+}

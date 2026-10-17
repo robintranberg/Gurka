@@ -1,0 +1,101 @@
+{
+  "v": 0,
+  "phase": "oneup",
+  "you": 2,
+  "starter": 0,
+  "count": 0,
+  "top": -1,
+  "done": false,
+  "free": false,
+  "exn": 1,
+  "deck": 1,
+  "slask": 24,
+  "gurka": -1,
+  "winner": -1,
+  "zl": [],
+  "zlMe": false,
+  "zlN": 0,
+  "turn": 2,
+  "room": "ABC123",
+  "last": "upflip",
+  "up": {
+    "owner": 2,
+    "stage": "decide",
+    "card": {
+      "r": 13,
+      "s": 3
+    },
+    "asking": -1,
+    "used": [
+      0,
+      1,
+      2
+    ],
+    "mark": 3
+  },
+  "seats": [
+    {
+      "seat": 0,
+      "name": "P0",
+      "n": 7,
+      "score": 0,
+      "on": true,
+      "grace": 0
+    },
+    {
+      "seat": 1,
+      "name": "P1",
+      "n": 7,
+      "score": 0,
+      "on": true,
+      "grace": 0
+    },
+    {
+      "seat": 2,
+      "name": "P2",
+      "n": 6,
+      "score": 0,
+      "on": true,
+      "grace": 0
+    },
+    {
+      "seat": 3,
+      "name": "P3",
+      "n": 7,
+      "score": 0,
+      "on": true,
+      "grace": 0
+    }
+  ],
+  "hand": [
+    {
+      "r": 9,
+      "s": 1
+    },
+    {
+      "r": 10,
+      "s": 1
+    },
+    {
+      "r": 11,
+      "s": 1
+    },
+    {
+      "r": 13,
+      "s": 1
+    },
+    {
+      "r": 14,
+      "s": 1
+    },
+    {
+      "r": 8,
+      "s": 2
+    }
+  ],
+  "reveal": [],
+  "tie": [],
+  "trick": [],
+  "points": 0,
+  "past": []
+}
