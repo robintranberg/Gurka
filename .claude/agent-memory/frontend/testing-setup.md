@@ -19,4 +19,5 @@ Verify the client against a real server with real browser clients, not by readin
 
 - Fastest render check: open `/`, wait for `hub.state==='Connected'`, call `A.newRoom()` once, `hub.off('state')`, then assign a hand-built `S={...}` and call `render(null)`. Reuse one page and loop `setViewport` sizes – avoids the NewRoom flood limit. Script template kept in an old scratchpad (`pt/tie.js`); recreate if gone.
 - Pitfall: app.js is one classic script with top-level `const`s – a new helper name that collides (e.g. `tie`, already used for draw text) kills the whole client with "Identifier already declared". Run `node --check` AND grep the name before adding helpers.
-- Known pre-existing issue (2026-10-17): at 844x390 the #msg text overlaps the bottom plate in exchange phase.
+- Overlap checker (2026-10-17): for every phase x size, compare rects of #msg text (Range over contents, not the box), .play and .felt .plate; plus scrollWidth. Old scratchpad `pt/ovl.js`. Visual review still needed: a too-small card (22 px) passes the checker.
+- Compare before/after by `git stash -- wwwroot/app.css`, run, `stash pop`.

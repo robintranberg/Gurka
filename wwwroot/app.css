@@ -68,12 +68,16 @@ main{position:relative;display:flex;flex-direction:column;min-width:0;min-height
 .tb .mc.hi{opacity:1;box-shadow:0 0 0 2px var(--brine),0 0 8px var(--brine)}
 
 /* sticket */
-#trick{grid-area:mid;min-width:0;min-height:0;display:grid;gap:4px;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:". top ." "left c right" ". bottom .";place-items:center}
+#trick{grid-area:mid;min-width:0;min-height:0;display:grid;gap:4px;grid-template-columns:minmax(min-content,1fr) minmax(0,auto) minmax(min-content,1fr);container-type:size;--tr:2.8;--tb:60px;--tt:0px;--tm:0px;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:". top ." "left c right" ". bottom .";place-items:center}
 .play{--c:var(--c0);display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 6px;border-radius:12px;min-width:0;transition:background .3s,box-shadow .3s}
+/* sticket krymper korten så att raderna ryms: --tr kortrader (×1,4), --tb/--tt/--tm luft för namn, etiketter och meddelande */
+#trick:has(.play[data-p=left],.play[data-p=right]){--tr:4.2;--tb:86px}
+#trick:has(.tag){--tt:24px}
+#trick:has(#msg:not(:empty)):not(:has(.play[data-p=left],.play[data-p=right])){--tm:48px}
 .play[data-p=top]{grid-area:top}.play[data-p=left]{grid-area:left}.play[data-p=right]{grid-area:right}.play[data-p=bottom]{grid-area:bottom}
 .play.won{box-shadow:0 0 0 3px var(--brine);background:rgba(236,201,75,.13)}
 .play .nm{font-size:12px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--c);font-weight:700}
-.cs{display:flex}.cs .card+.card{margin-left:calc(var(--trick-cw)*-.5)}
+.cs{display:flex}.cs .card+.card{margin-left:calc(var(--cw)*-.5)}
 .tag.g{background:#bfe39a}.tag.w{background:var(--brine2)}
 .tag{font-size:11px;border-radius:99px;padding:1px 8px;background:var(--brine);color:var(--ink);font-weight:800;letter-spacing:.02em}.tag.sak{background:#f4b6a8}
 #msg{grid-area:c;text-align:center;font-weight:700;font-size:18px;text-shadow:0 1px 3px rgba(0,0,0,.5);padding:0 6px;max-width:100%}
@@ -101,7 +105,7 @@ main{position:relative;display:flex;flex-direction:column;min-width:0;min-height
 .card .pip{position:absolute;right:.18em;bottom:.1em;font-size:1.7em;line-height:1} /* stor symbol nere till höger – döljs snyggt av nästa kort i handen */
 
 .card.red{color:var(--red)}
-.card.md{--cw:var(--trick-cw)}.card.sm{--cw:var(--sm-cw)}
+.card.md{--cw:max(22px,min(var(--trick-cw),calc((100cqh - var(--tb) - var(--tt) - var(--tm))/var(--tr))))} /* krymper så att sticket ryms i filtens höjd */.card.sm{--cw:var(--sm-cw)}
 button.card{background:linear-gradient(160deg,#fffef9,var(--paper) 60%,#efe8d6);color:var(--ink)}button.card.red{color:var(--red)}
 button.card:active:not(:disabled){transform:none}
 #hand .card{margin-left:calc(var(--hand-cw)*-.32);cursor:pointer}#hand .card:first-child{margin-left:0}#hand .card:not(:last-child) .pip{visibility:hidden}
@@ -192,6 +196,7 @@ main{padding:0 8px}
 .backs{height:26px}.back{width:16px;height:23px;margin-right:-9px}
 #p-bottom .plate{grid-template-columns:auto auto;padding:3px 12px 3px 4px}#p-bottom .pi{display:flex;gap:10px;align-items:baseline}
 #trick{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"left top right" "c c c" ". bottom ."}
+#trick,#trick:has(.play[data-p=left],.play[data-p=right]){--tr:2.8;--tb:60px}#trick:has(#msg:not(:empty)){--tm:48px} /* vänster/höger ligger i översta raden */
 #msg{font-size:15px}.slots{grid-template-columns:1fr 1fr}.lb{padding:16px}
 :root{--trick-cw:clamp(34px,min(15vw,8dvh),64px)}}
 @media(max-width:400px){#status{display:none}.tools{margin-left:auto}}
@@ -202,6 +207,11 @@ header{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:0}h1{font
 #table{padding-bottom:2px}.rim{padding:6px}.felt{padding:4px 4%;gap:2px}
 .plate{padding:2px 8px 2px 3px;font-size:12px;min-width:0}.pc{font-size:11px}.av{width:24px;height:24px;font-size:12px}.backs{display:none}.backs:has(.card){display:flex}
 #past{display:none}#msg{font-size:14px}
+.plate{grid-template-columns:auto minmax(0,1fr) auto;max-width:260px}.backs,.backs:has(.card){grid-column:auto;margin:0 0 0 6px} /* skyltar på en rad så att mitten får höjd */
+.felt{grid-template-areas:"top top top" "left mid right" "bottom bottom bottom"}#p-top .pi,#p-bottom .pi{display:flex;gap:8px;align-items:baseline}
+#trick,#trick:has(.play[data-p=left],.play[data-p=right]){grid-template-columns:minmax(min-content,1fr) auto minmax(0,auto) minmax(min-content,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"left top c right" "left bottom c right";--tr:2.8;--tb:24px}#trick:has(.tag){--tt:0px}#trick:has(#msg:not(:empty)),#trick:has(#msg:not(:empty)):not(:has(.play[data-p=left],.play[data-p=right])){--tm:0px} /* etiketter ovanpå, meddelandet i egen kolumn */
+.play{position:relative;padding:3px 4px;border-bottom:2px solid var(--c)}.play .nm{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)} /* namnet bara för skärmläsare – platsen och färgen visar vem */
+.play .tag{position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);white-space:nowrap;z-index:1}
 #me{display:flex;align-items:center;justify-content:center;gap:12px;padding-bottom:calc(4px + env(safe-area-inset-bottom))}
 #actions{order:2;flex:0 1 40%;justify-content:flex-start;text-align:left}#actions p{font-size:13px}
 #hand{padding-top:calc(var(--hand-cw)*.22)}
