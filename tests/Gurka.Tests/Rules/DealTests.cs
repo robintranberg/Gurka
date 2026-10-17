@@ -163,6 +163,16 @@ public class DealTests
     }
 
     [Fact]
+    public void Avgörandet_töms_redan_när_bytet_är_klart()
+    {
+        var t = QueensTwice();
+        Assert.Null(t.G.Exchange(2, null));
+        Assert.Equal("respond", t.G.Phase);
+        Assert.Empty(t.G.Ties);
+        Assert.Empty(Tie(t.G, 0).EnumerateArray());
+    }
+
+    [Fact]
     public void Avgörandet_töms_när_spelet_börjar()
     {
         var t = Table.Playing("2k 3k 4k 5k 6k 7k Ah", "2r 3r 4r 5r 6r 7r As");
