@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Gurka.Tests.Integration;
 
 // Hubben via riktiga SignalR-klienter mot en testserver. Varje test får en egen server och därmed en egen Lobby.
+[Collection("Server")] // Build är statisk, se BuildTests
 public class HubTests : IAsyncLifetime
 {
     readonly WebApplicationFactory<Program> f = new();

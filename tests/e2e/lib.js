@@ -18,7 +18,8 @@ const launch = (opts = {}) => puppeteer.launch({ executablePath: BROWSER, headle
 async function open(page, url) {
   await page.goto(url, { waitUntil: 'networkidle2' });
   if ((await page.title()).includes('Codespaces')) {
-    await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle2' }), page.click('button')]);
+    const btn = await page.$('button::-p-text(Continue)') || await page.$('button');
+    await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle2' }), btn.click()]);
   }
 }
 

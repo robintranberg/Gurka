@@ -18,3 +18,4 @@ Browser unload order matters for any "tab alive" logic: beforeunload → pagehid
 In "done" reports, list exactly which scenarios/phases were exercised (e.g. "3-way tie round 1, 2-way round 2, decided round 3, exchange phase, non-starter view") – developer asked for this 2026-10-17. Run `node --check` before reporting so reviewers never see a broken snapshot.
 
 Before proposing a contract, check the inbox: developer's contract often arrives while I am reading code (crossed messages on 1 upp, 2026-10-17). Security-reviewer wants an explicit "UI is final" message so they review the final version.
+Crossed messages happened twice on 2026-10-17 (1 upp, version handshake) even though I asked "have you started?" in the same message as my proposal. Better: send only a one-line question/constraint first (e.g. "what we must catch: X; have you started?") and wait for the reply before writing a full proposal.

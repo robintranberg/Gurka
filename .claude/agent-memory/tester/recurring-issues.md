@@ -16,6 +16,9 @@ metadata:
 - Developer kan lägga till extra tömning utöver kontraktet (Ties töms även vid respond, inte bara StartPlay) – ger ekvivalenta mutanter; fråga hellre än att anta fel.
 - Developer kan avvika från sitt eget kontrakt under implementationen (2026-10-17, 1 upp: det uppvända kortet blev kvar som Deck[0] i stället för att dras). Skriv invarianter så att de är lätta att byta (en rad i AssertConserved) och läs om koden innan du rapporterar ett fel mot kontraktet.
 - Mutanter som överlever beror oftast på att testdatan bara använder index 0 (markering/insättning). Variera index i minst ett test per regel.
+- 2026-10-17 igen: Build.Init ändrades från (webRoot, contentRoot) till (contentRoot) och wwwroot togs bort ur hashen medan jag skrev BuildTests. Läs alltid om den aktuella koden precis innan första bygget i stället för att lita på kontraktsmeddelandet.
+- Tester för likhet (Boot == Now) säger inget om vilket värde som returneras. Skapa ett läge där värdena skiljer sig (ändra en fil efter Init) innan du asserterar.
+- Statiskt globalt tillstånd (Build) + WebApplicationFactory: lägg alla berörda klasser i [Collection("Server")] så att de inte körs parallellt.
 
 **Why:** Ger fokus nästa gång: var fel brukar gömma sig och vad som orsakar omarbete.
 **How to apply:** Testa avbrott/återställning, View-sekretess och kantfall i lobby/anslutning extra noga; se [[test-patterns]].

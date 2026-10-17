@@ -232,3 +232,5 @@ header{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:0}h1{font
 .card.up{--cw:clamp(34px,min(var(--trick-cw),calc(100cqh/1.4 - 8px)),76px);box-shadow:0 0 0 3px var(--brine),0 0 16px var(--brine),0 4px 10px rgba(0,0,0,.4)}
 .av.ud::before{content:"✓";position:absolute;right:-4px;bottom:-4px;width:15px;height:15px;border-radius:50%;background:var(--panel);color:var(--dim);font:900 10px/15px system-ui,sans-serif;text-align:center;box-shadow:0 0 0 1.5px var(--dim)}
 .plate.sp .av.ud::before{content:"–";color:var(--bad);box-shadow:0 0 0 1.5px var(--bad)}
+/* versionsbanner: servern kör en äldre build än filerna */
+#verBanner{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top));pointer-events:none;transform:translateX(-50%);z-index:21;width:max-content;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:12px;background:#ffe1db;color:#5a130a;font-weight:700;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.45)}

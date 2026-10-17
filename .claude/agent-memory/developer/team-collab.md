@@ -15,7 +15,9 @@ Ange alltid ordningen för listor i kontraktet (t.ex. "sorterad på round, sedan
 
 Ändrar du något efter att kontraktet skickats, till exempel var ett fält töms, ska du märka meddelandet till tester tydligt som "ändring mot kontraktet" och ange radnummer. Annars korsar det testerna, och testaren upptäcker ändringen först via en mutation som överlever (testers återkoppling 2026-10-17).
 
-Skicka en ändring mot kontraktet I SAMMA STUND som du bestämmer dig, som ett eget kort meddelande, innan du fortsätter koda. Vid 1 upp (2026-10-17) bestämde jag mig för att låta UpCard ligga kvar i Deck[0], men skickade det först tillsammans med "klart"-meddelandet. Meddelandet korsade testerna, och testaren felsökte ett "dubbelt kort" (testers återkoppling). Det som fungerade bra var att kontraktet listade alla Notes-texter och felmeddelanden, eftersom testerna då blev exakta direkt.
+Skicka en ändring mot kontraktet INNAN du rör koden (inte efter bygget), som ett eget kort meddelande. Även en kort stund mellan kodändring och meddelande räckte för att testarens bygge föll ("Init takes 2 arguments", versionshandslaget 2026-10-17, andra gången samma dag). Vid 1 upp (2026-10-17) bestämde jag mig för att låta UpCard ligga kvar i Deck[0], men skickade det först tillsammans med "klart"-meddelandet. Meddelandet korsade testerna, och testaren felsökte ett "dubbelt kort" (testers återkoppling). Det som fungerade bra var att kontraktet listade alla Notes-texter och felmeddelanden, eftersom testerna då blev exakta direkt.
+
+Stäm av designval som påverkar andra (t.ex. vad en hash ska omfatta) i en mening INNAN du implementerar och skickar "jag implementerar nu". Frontends återkoppling 2026-10-17 om versionshandslaget, där wwwroot i hashen gav falsklarm och fick tas bort efteråt.
 
 **Why:** Team Lead kräver det (uppdraget 2026-10-16). Frontend och tester jobbar parallellt och kan inte läsa koden medan den ändras.
 **How to apply:** Gäller varje gång View(), hubbmetoder eller events ändras. Se även [[backend-pitfalls]].

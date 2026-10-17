@@ -53,7 +53,7 @@ public class GameHub(Lobby lb) : Hub
         }
         await lb.Flush(t);
         if (e != null) { await Clients.Caller.SendAsync("err", e); return null; }
-        return new { token = tok, room = code, seat };
+        return new { token = tok, room = code, seat, build = Build.Boot }; // build: identitet när processen startade (se Build i Program.cs)
     }
 
     // skapar ett bord och returnerar koden (6 tecken); null + err om taket är nått. Anropa sedan Hello(token, kod).

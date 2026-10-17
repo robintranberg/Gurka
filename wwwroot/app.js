@@ -62,7 +62,14 @@ async function hello(code=room){
  const old=tok;tok=r.token;ss.set('tok',tok);TK.put(r.seat>=0?tok:null,t!==tok?t:old);
  if(r.room!==room){room=r.room;history.replaceState(null,'',room?'?bord='+encodeURIComponent(room):location.pathname)}
  try{hist=JSON.parse(ss.get('hist.'+room)||'[]')}catch{hist=[]}
- if(r.seat>=0&&!wasSeated&&t)toast('Välkommen tillbaka – du har kvar din plats','ok');wasSeated=r.seat>=0}
+ if(r.seat>=0&&!wasSeated&&t)toast('Välkommen tillbaka – du har kvar din plats','ok');wasSeated=r.seat>=0;chkBuild(r.build)}
+// versionshandslag: build.js speglar filerna på disken nu, Hello den build som processen startade med.
+// Olika → ladda om en gång (spärrat i sessionStorage), kvarstår det kör servern gammal kod.
+function chkBuild(b){const mine=window.GURKA_BUILD,bn=$('verBanner'),old=m=>{bn.textContent=m;bn.hidden=false};
+ if(typeof b!=='string'||typeof mine!=='string')return old('Servern kör en äldre version – starta om servern.');
+ if(b===mine){bn.hidden=true;return}
+ const k=b+'/'+mine;let ok=false;try{if(sessionStorage.getItem('gurka-reload')!==k){sessionStorage.setItem('gurka-reload',k);ok=sessionStorage.getItem('gurka-reload')===k}}catch{}
+ if(ok)location.reload();else old('Servern kör en äldre version – starta om servern.')}
 async function online(){setConn('ok','Ansluten');lv=0;await hello()}
 async function connect(){setConn('wait','Ansluter…');try{await hub.start();await online()}catch{setConn('down','Ingen kontakt med servern – försöker igen…');setTimeout(connect,3000)}}
 hub.onreconnecting(()=>setConn('wait','Återansluter…'));
