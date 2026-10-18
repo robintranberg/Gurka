@@ -18,6 +18,7 @@ h1{margin:0;font:italic 700 28px/1 Georgia,"Times New Roman",serif;letter-spacin
 .conn{flex:none;width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(127,212,138,.18)}
 .conn.wait{background:var(--brine);animation:blink 1s ease-in-out infinite}.conn.down{background:var(--bad);box-shadow:0 0 0 3px rgba(255,138,122,.2)}
 .tools{display:flex;gap:2px;flex:none}
+.codebtn{flex:none;min-height:44px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.06);font:600 14px/1 ui-monospace,Consolas,monospace;letter-spacing:.1em;color:var(--brine2)}.codebtn:hover{background:rgba(255,255,255,.12)}
 .ib{position:relative;display:grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border-radius:12px;background:transparent;color:var(--mist)}
 .ib:hover{background:rgba(255,255,255,.1)}
 .ib svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.ib svg .f{fill:currentColor;stroke:none}
@@ -201,11 +202,12 @@ main{padding:0 8px}
 #trick,#trick:has(.play[data-p=left],.play[data-p=right]){--tr:2.8;--tb:60px}#trick:has(#msg:not(:empty)){--tm:48px} /* vänster/höger ligger i översta raden */
 #msg{font-size:15px}.slots{grid-template-columns:1fr 1fr}.lb{padding:16px}
 :root{--trick-cw:clamp(34px,min(15vw,8dvh),64px)}}
-@media(max-width:400px){#status{display:none}.tools{margin-left:auto}}
+@media(max-width:340px){.ib{width:38px}}
+@media(max-width:400px){#status{display:none}.tools{margin-left:auto}#codeBtn{margin-left:auto;padding:0 7px;font-size:12px;letter-spacing:.04em}#codeBtn:not([hidden])~.tools{margin-left:0}header:has(#codeBtn:not([hidden])) h1{display:none}}
 /* liggande mobil: låg höjd, handen och knapparna bredvid varandra */
 @media(max-height:559px){
 :root{--hand-cw:clamp(46px,17dvh,72px)}
-header{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:0}h1{font-size:20px}.brand img{width:24px;height:24px}.ib{height:40px;min-height:40px}
+header{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:0}h1{font-size:20px}.brand img{width:24px;height:24px}.ib,.codebtn{height:40px;min-height:40px}
 #table{padding-bottom:2px}.rim{padding:6px}.felt{padding:4px 4%;gap:2px}
 .plate{padding:2px 8px 2px 3px;font-size:12px;min-width:0}.pc{font-size:11px}.av{width:24px;height:24px;font-size:12px}.backs{display:none}.backs:has(.card){display:flex}
 #past{display:none}#msg{font-size:14px}

@@ -133,7 +133,7 @@ function render(p){
   if(p&&p.hand&&['exchange','zlatan','respond','oneup'].includes(s.phase)){const o=new Set(p.hand.map(key));h.forEach(c=>{if(!o.has(key(c))&&p.hand.length)fresh.add(key(c))})} // nya kort efter byte
   if(s.phase==='exchange'&&p&&p.phase!=='exchange'||s.phase==='play'&&p&&h.length<(p.hand||[]).length||!inGame)fresh.clear()}
  if(!(U()?.stage==='offer'&&s.up.asking===s.you))upY=false;
- document.body.dataset.phase=s.phase;
+ document.body.dataset.phase=s.phase;codeBtn();
  $('status').textContent=({lobby:()=>`${cnt}/4 vid bordet`,exchange:()=>`${who(s.starter)} ${s.tie?.length?'vann avgörandet':'har högst kort'} och börjar`,zlatan:()=>'Zlatan-läge',oneup:()=>{const u=s.up;return!u?'':u.stage==='pick'?`${who(u.owner)} väljer: ${upOpts(+s.deck)}`:u.stage==='decide'?`${who(u.owner)} funderar på upp-kortet`:`${who(u.asking)} får frågan om upp-kortet`},respond:()=>s.turn>=0?`${who(s.turn)} ${s.free?'väljer kort att byta':'väljer kasta eller behålla'}`:'',play:()=>`${who(s.turn)} är på tur`,over:()=>'Omgången är slut'}[s.phase]||(()=>''))();
  // spelarskyltar
  const pl={top:'',left:'',right:'',bottom:''};
@@ -170,7 +170,8 @@ function score(){const s=S;
   (hist.length?'<h3>Senaste omgångar</h3>'+hist.slice(-8).reverse().map(x=>`<div class="hr"><i>#${+x.n}</i><span>${x.d?'🤝 Oavgjort – poängen stod still':`🏆 ${esc(x.w)} +${+x.p} · 🥒 ${esc(x.g)} −${+x.p}`}</span></div>`).join(''):''))}
 
 // startsidan: inget bord valt – skapa ett eget eller gå med via kod (det finns inget standardbord)
-function clearTable(){['p-top','p-left','p-right','p-bottom','trick','past','hand','actions'].forEach(i=>put($(i),''));$('me').hidden=true;$('result').hidden=true;resOpen=false;document.body.dataset.phase='home'}
+function codeBtn(){const b=$('codeBtn');b.hidden=!S||!room;b.textContent=room;b.setAttribute('aria-label','Bjud in – bordskod '+room)} // koden syns i headern även under spelet
+function clearTable(){['p-top','p-left','p-right','p-bottom','trick','past','hand','actions'].forEach(i=>put($(i),''));$('me').hidden=true;$('result').hidden=true;resOpen=false;document.body.dataset.phase='home';codeBtn()}
 function landing(){S=null;lv=0;clearTable();$('status').textContent='Skapa ett bord eller gå med via kod';const lb=$('lobby'),first=!lb._h;lb.hidden=false;
  put(lb,`<div class="lb"><h2>Gurka</h2><p>Kortspelet för 2–4 där ingen vill få gurkan. Skapa ett bord och bjud in de andra med länken eller koden.</p>
   <form class="join" data-f="create"><input id="nick" maxlength="14" placeholder="Ditt namn" aria-label="Ditt namn" autocomplete="nickname" enterkeyhint="go"><button class="pri">Skapa bord</button></form>
