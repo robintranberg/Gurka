@@ -22,10 +22,13 @@ public class ZlatanTests
     }
 
     [Fact]
-    public void Inget_byte_hoppar_över_Zlatan()
+    public void Inget_byte_ger_också_Zlatan_fas()
     {
+        // sedan 2026-10-18: övrigas Zlatan kommer oavsett hur många kort startspelaren byter
         var t = Table.Seated(3).Deal(Three);
         Assert.Null(t.G.Exchange(0, null));
+        Assert.Equal("zlatan", t.G.Phase);
+        Assert.Null(t.G.Zlatan(1, false));
         Assert.Equal("respond", t.G.Phase);
         Assert.Equal("Du kan inte köra Zlatan nu.", t.G.Zlatan(1, true));
     }

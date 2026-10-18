@@ -157,8 +157,8 @@ function render(p){
 function msg(s){
  if(draw(s))return`<div class="res"><span class="w">🤝 Oavgjort</span><span class="sub">Ingen vinner – poängen står still</span></div>`;
  if(s.phase==='over')return`<div class="res"><span class="g">🥒 ${esc(who(s.gurka))} fick gurkan <small>(−${+s.points})</small></span><span class="w">🏆 ${esc(who(s.winner))} vinner <small>(+${+s.points})</small></span></div>`;
- if(s.phase==='exchange')return`${esc(who(s.starter))} ${s.tie?.length?'vann avgörandet':'fick högst kort'} och börjar<span class="sub">${s.starter===s.you?'Välj kort att byta':'Byter kort…'}</span>`;
- if(s.phase==='zlatan')return`${esc(who(s.starter))} byter ${+s.exn} kort<span class="sub">${s.zlMe?'Du kan köra Zlatan':`Väntar på Zlatan-beslut (${+s.zlN})`}</span>`;
+ if(s.phase==='exchange')return`${esc(who(s.starter))} ${s.tie?.length?'vann avgörandet':'fick högst kort'} och börjar<span class="sub">${s.starter===s.you?(s.zlMe?'Du kan köra Zlatan':'Välj kort att byta'):'Byter kort…'}</span>`;
+ if(s.phase==='zlatan')return`${esc(who(s.starter))} ${+s.exn?`byter ${+s.exn} kort`:'behåller alla kort'}<span class="sub">${s.zlMe?'Du kan köra Zlatan':`Väntar på Zlatan-beslut (${+s.zlN})`}</span>`;
  if(s.phase==='oneup'&&s.up){const u=s.up,c=u.card,d=+s.deck-(c?1:0),dk=d<7?`<span class="sub">Leken: ${d} kort · slasken: ${+s.slask} kort</span>`:''; // uppvända kortet räknas i deck men ligger synligt
   if(u.stage==='pick'||!c)return`${esc(who(u.owner))} väljer<span class="sub">${upOpts(+s.deck)}</span>${dk}`;
   return`<div class="upw">${card(c,'up in')}<div class="ut"><span class="sr">Uppvänt kort: ${esc(cn(c))}. </span>${esc(who(u.owner))} körde 1 upp<span class="sub">${u.stage==='decide'?(u.owner===s.you?'Ta kortet eller tacka nej':'Tar kortet eller tackar nej…'):u.asking===s.you?'Vill du ta kortet?':`Vill ${esc(nm(u.asking))} ta kortet?`}</span>${dk}</div></div>`}
@@ -199,8 +199,10 @@ function acts(){
  if(!me){a=s.phase==='over'?(s.seats.every(x=>x)?'<p>Bordet är fullt (4/4).</p>':`<form class="join" data-f="join"><input id="nick2" maxlength="14" placeholder="Ditt namn" aria-label="Ditt namn" autocomplete="nickname"><button class="pri">Sätt dig</button></form>`):s.phase==='lobby'?'':'<p>Spelet pågår – du tittar på. Du kan sätta dig när omgången är slut.</p>'}
  else if(s.phase==='over')a=(s.host===s.you?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:`<p>${waitHost(s,1)}</p>`)+`<button data-a="showRes">Visa resultat</button>`;
  else if(s.phase==='zlatan'&&s.zlMe){const ok=s.deck-s.exn>=7;
-  a=`<p>${esc(nm(s.starter))} byter ${+s.exn} kort. Du har inget kort över 10 – <span class="hint">Zlatan!</span> Kasta alla och få 7 nya innan bytet?${ok?'':' (Leken räcker inte.)'}</p><button class="pri" data-a="zy" ${ok?'':'disabled'}>Zlatan – 7 nya</button><button data-a="zn">Behåll</button>`}
+  a=`<p>${esc(nm(s.starter))} ${+s.exn?`byter ${+s.exn} kort`:'behåller alla kort (du får sedan bara kasta alla eller behålla)'}. Du har inget kort över 10 – <span class="hint">Zlatan!</span> Kasta alla och få 7 nya innan bytet?${ok?'':' (Leken räcker inte.)'}</p><button class="pri" data-a="zy" ${ok?'':'disabled'}>Zlatan – 7 nya</button><button data-a="zn">Behåll</button>`}
  else if(s.phase==='zlatan')a=`<p>Väntar på ${+s.zlN>1?+s.zlN+' spelare':'en spelare'} som får välja Zlatan – 7 nya kort innan bytet…</p>`;
+ else if(s.phase==='exchange'&&my&&s.zlMe&&!sel.size){const ok=s.deck>=7; // startspelarens Zlatan före bytet; markerar man kort byter man som vanligt
+  a=`<p>Du börjar och har inget kort över 10 – <span class="hint">Zlatan!</span> Kasta alla och få 7 nya, eller strunta i det och byt som vanligt.${ok?'':' (Leken räcker inte.)'}</p><button class="pri" data-a="zy" ${ok?'':'disabled'}>Kör Zlatan – 7 nya kort</button><button data-a="zn">Strunta i det</button>`}
  else if(s.phase==='exchange'&&my)a=`<p>Du börjar! Markera de kort du vill byta mot nya från leken – eller behåll alla. Markerar du <span class="hint">exakt 1</span> kör du 1 upp.</p><button class="pri" data-a="x" ${sel.size>s.deck?'disabled':''}>${sel.size==1?'1 upp':sel.size?`Byt ${sel.size} kort`:'Behåll alla'}</button>${sel.size?'<button data-a="clr">Avmarkera</button>':''}`;
  else if(s.phase==='oneup'&&my&&s.up)a=oneUp(s,s.up);
  else if(s.phase==='respond'&&my&&s.free)a=freeResp(s);

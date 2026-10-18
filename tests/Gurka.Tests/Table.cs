@@ -31,6 +31,7 @@ public sealed class Table
     {
         var t = Seated(hands.Length).Deal(hands);
         Assert.Null(t.G.Exchange(t.G.Starter, null));
+        foreach (var z in t.G.Zl.ToList()) Assert.Null(t.G.Zlatan(z, false)); // Zlatan-fasen kommer även utan startbyte
         while (t.G.Phase == "respond") Assert.Null(t.G.Respond(t.G.Resp.Peek(), false));
         Assert.Equal("play", t.G.Phase);
         return t;

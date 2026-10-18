@@ -20,7 +20,7 @@ public class Game
     public List<Card> Deck = new();
     public Queue<int> Resp = new();
     public string Phase = "lobby"; // lobby, exchange, zlatan, respond, oneup, play, over
-    public bool Done, RespFree;
+    public bool Done, RespFree, ZlSt; // ZlSt: startspelaren saknar kort över 10 och har ännu inte valt Zlatan (syns bara för den själv)
     public long Ver; // versionsnummer så klienten kan ignorera tillstånd som kommer i fel ordning
     public int Starter, Turn, Count, Top = -1, Gurka = -1, Winner = -1, Points, ExN, Host = -1; // Host = värdens plats: bara värden startar en giv
     public List<int> TopRs = new(); // korten som ligger högst i sticket, sorterade stigande – slås kort för kort
@@ -80,6 +80,7 @@ public class Game
         Starter = t.OrderByDescending(i => v[i].S).First(); // leken slut (i praktiken omöjligt): färgen avgör
         if (Ties.Count > 0) Notes.Add(Seats[Starter]!.Name + " fick högst och börjar.");
         Zl = Active.Where(i => i != Starter && Seats[i]!.Hand.All(c => c.R <= 10)).ToHashSet();
+        ZlSt = Seats[Starter]!.Hand.All(c => c.R <= 10); // startspelaren väljer Zlatan före sitt byte
         Phase = "exchange"; Last = "deal";
     }
     string Names(List<int> t) { var n = t.Select(i => Seats[i]!.Name).ToList(); return n.Count == 1 ? n[0] : string.Join(", ", n.Take(n.Count - 1)) + " och " + n[^1]; }
@@ -130,7 +131,7 @@ public class Game
         {
             Phase = "lobby"; Trick.Clear(); Past.Clear(); Reveal.Clear(); Ties.Clear(); Done = false; n = n.TrimEnd('.') + " – spelet avbröts.";
             foreach (var p in Seats) p?.Hand.Clear(); // inga gamla kort i lobbyn
-            Deck.Clear(); Discards.Clear(); Zl.Clear(); Resp.Clear(); UpClear(); ExN = Count = 0; Top = -1;
+            Deck.Clear(); Discards.Clear(); Zl.Clear(); ZlSt = false; Resp.Clear(); UpClear(); ExN = Count = 0; Top = -1;
         }
         else if (Phase == "over" && (i == Gurka || i == Winner)) Phase = "lobby"; // resultatet pekar annars på en tom plats
         Notes.Add(n);
@@ -158,8 +159,8 @@ public class Game
         idx ??= Array.Empty<int>();
         if (idx.Distinct().Count() != idx.Length || idx.Any(i => i < 0 || i > 6)) return "Ogiltigt val.";
         if (idx.Length > Deck.Count) return $"Leken har bara {Deck.Count} kort kvar.";
-        ExIdx = idx; ExN = idx.Length; Last = "exchange";
-        if (ExN > 0 && Zl.Count > 0) { Phase = "zlatan"; return null; } // Zlatan-spelarna väljer innan bytet sker
+        ExIdx = idx; ExN = idx.Length; Last = "exchange"; ZlSt = false; // byte = avstår Zlatan
+        if (Zl.Count > 0) { Phase = "zlatan"; return null; } // Zlatan-spelarna väljer innan bytet sker, även när startspelaren behåller alla
         DoExchange(); return null;
     }
 
@@ -185,6 +186,16 @@ public class Game
 
     public string? Zlatan(int m, bool take)
     {
+        if (Phase == "exchange" && m == Starter && ZlSt) // startspelarens Zlatan, före bytet
+        {
+            if (take)
+            {
+                if (Deck.Count < 7) return "Leken räcker inte för 7 nya kort.";
+                var o = Seats[m]!.Hand; Seats[m]!.Hand = Draw(7); Discards.AddRange(o);
+                Notes.Add(Seats[m]!.Name + " körde Zlatan och fick 7 nya kort!"); Last = "zlatan";
+            }
+            ZlSt = false; return null; // bara en Zlatan per giv; sedan byter startspelaren som vanligt
+        }
         if (Phase != "zlatan" || !Zl.Contains(m)) return "Du kan inte köra Zlatan nu.";
         if (take)
         {
@@ -364,7 +375,7 @@ public class Game
     {
         v = Ver, phase = Phase, you, starter = Starter, count = Count, top = Top, done = Done, free = RespFree, exn = ExN, deck = Deck.Count, slask = Discards.Count, gurka = Gurka, winner = Winner,
         // vem som kan köra Zlatan avslöjar svaga händer: varje klient får bara veta om sig själv, plus hur många som väntar
-        zl = Phase == "zlatan" && Zl.Contains(you) ? new List<int> { you } : new List<int>(), zlMe = Phase == "zlatan" && Zl.Contains(you), zlN = Phase == "zlatan" ? Zl.Count : 0,
+        zl = Phase == "zlatan" && Zl.Contains(you) ? new List<int> { you } : new List<int>(), zlMe = Phase == "zlatan" && Zl.Contains(you) || Phase == "exchange" && ZlSt && you == Starter, zlN = Phase == "zlatan" ? Zl.Count : 0,
         turn = CurTurn, room, last = Last, host = Host,
         up = Phase != "oneup" ? null : new { owner = UpOwner, stage = UpStage, card = UpCard == null ? null : new { r = UpCard.R, s = UpCard.S }, asking = UpAsk, used = UpUsed.OrderBy(i => i).ToList(),
             mark = you == UpOwner && UpStage != "pick" ? UpMark : -1 },
