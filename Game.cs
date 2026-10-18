@@ -256,7 +256,7 @@ public class Game
     // nästa spelare i turordning från startspelaren som inte haft eller förbrukat sin tur; annars börjar spelet
     void UpNext()
     {
-        UpAsk = -1; UpCard = upOwn = null; UpMark = -1;
+        UpUsed.Add(UpOwner); UpAsk = -1; UpCard = upOwn = null; UpMark = -1; // ägaren har haft sin tur, även vid behåll eller alla 7
         for (int s = Next(UpOwner); s != Starter; s = Next(s))
             if (!UpUsed.Contains(s)) { UpOwner = s; UpStage = "pick"; return; }
         StartPlay();
@@ -297,7 +297,9 @@ public class Game
         {
             if (m != UpOwner) return "Inte din tur.";
             if (take) { Seats[m]!.Hand.Insert(UpMark, Draw(1)[0]); Notes.Add(Seats[m]!.Name + " tar kortet."); Last = "swap"; UpNext(); return null; }
-            Notes.Add(Seats[m]!.Name + " tackar nej."); Last = "uppass"; UpStage = "offer"; UpAsk = Next(UpOwner); return null;
+            Notes.Add(Seats[m]!.Name + " tackar nej."); Last = "uppass"; UpAsk = UpAsker(UpOwner);
+            if (UpAsk >= 0) { UpStage = "offer"; return null; }
+            UpNone("Ingen kunde ta kortet."); return null; // alla har redan haft sin tur
         }
         if (UpStage != "offer" || m != UpAsk) return "Inte din tur.";
         if (take)
@@ -307,10 +309,20 @@ public class Game
             Notes.Add(Seats[m]!.Name + " tar kortet."); UpRefill(null, gone); UpNext(); return null;
         }
         Notes.Add(Seats[m]!.Name + " tackar nej."); Last = "uppass";
-        UpAsk = Next(UpAsk);
-        if (UpAsk != UpOwner) return null;
-        Notes.Add("Ingen tog kortet."); var up = Draw(1)[0]; Discards.Add(up); UpRefill(up); UpNext(); return null;
+        UpAsk = UpAsker(UpAsk);
+        if (UpAsk < 0) UpNone("Ingen tog kortet.");
+        return null;
     }
+
+    // nästa spelare efter s (åt vänster, fram till ägaren) som inte har haft sin tur och därför får frågan; -1 om ingen
+    int UpAsker(int s)
+    {
+        for (s = Next(s); s != UpOwner; s = Next(s)) if (!UpUsed.Contains(s)) return s;
+        return -1;
+    }
+
+    // ingen tar det uppvända kortet: det går till slasken och ägaren får nästa kort (dolt)
+    void UpNone(string note) { Notes.Add(note); var up = Draw(1)[0]; Discards.Add(up); UpRefill(up); UpNext(); }
 
     public string? Play(int m, int[]? idx)
     {

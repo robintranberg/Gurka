@@ -48,3 +48,4 @@ Host rule (2026-10-18 14:08) VERIFIED: Start requires m==Host; Creator = conn id
 - B19 LÅG/design: Team Lead decision: on disconnect (Gone) host passes immediately to the next connected seated player, never back; a connected idle host is ACCEPTED. FixHost VERIFIED 14:13 (Game.cs:140-145, called in Detach/Attach/Join/Leave).
 - B20 LÅG: NAT reconnect storm vs. Hello limit. VERIFIED fixed 14:15 (client retries Hello at most 5 times, 0.7-2.2 s jitter, only on 'För många anrop').
 Client landing/host/asleep (app.js 14:10) VERIFIED clean: esc everywhere, no reconnect loop when slept. 
+1 upp offer change (2026-10-18 14:26, UpAsker/UpNone): VERIFIED clean, the loop stops at UpOwner, 2-player case goes straight to UpNone, 52 cards OK, hidden card unchanged.

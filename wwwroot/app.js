@@ -115,7 +115,8 @@ const pickMax=()=>S.phase==='exchange'?Math.min(7,S.deck):S.phase==='oneup'?1:S.
 // 1 upp: up={owner,stage:pick|decide|offer,card,asking,used,mark}. upY = du har svarat ja och väljer kortet du slänger
 let upY=false;const U=()=>S.phase==='oneup'&&S.up?S.up:null;
 const upOpts=d=>d>=7?'1 upp, byt alla 7 eller behåll':d>0?'1 upp eller behåll':'gräv i slasken (1 kort) eller behåll'; // leken styr valen i pick
-const rel=i=>(i-S.starter+4)%4,spent=(u,i)=>u.used.includes(i)&&rel(i)>rel(u.owner); // tog upp-kortet innan sin tur
+const rel=i=>(i-S.starter+4)%4,askable=u=>S.seats.some((q,i)=>q&&i!==S.starter&&i!==u.owner&&!u.used.includes(i)), // tackar ägaren nej frågas bara de som inte haft sin tur (aldrig startspelaren)
+spent=(u,i)=>u.used.includes(i)&&rel(i)>rel(u.owner); // tog upp-kortet innan sin tur
 
 // ---------- rendering ----------
 function layout(s){ // placerar spelarna runt bordet, du längst ner
@@ -219,7 +220,8 @@ function acts(){
 }
 const game=()=>!['lobby','over'].includes(S.phase);
 function oneUp(s,u){const dk=+s.deck;
- if(u.stage==='decide')return`<p>Du körde 1 upp. Ta kortet – eller tacka nej, så får övriga frågan och du får <span class="hint">${s.deck>1?'nästa kort, dolt':'ett dolt kort ur slasken'}</span>.</p><button class="pri" data-a="ut">Ta kortet</button><button data-a="un">Tacka nej</button>`;
+ if(u.stage==='decide'){const ask=askable(u),nx=`<span class="hint">${s.deck>1?'nästa kort, dolt':'ett dolt kort ur slasken'}</span>`;
+  return`<p>Du körde 1 upp. Ta kortet – eller tacka nej, så ${ask?`får de som inte haft sin tur frågan och du får ${nx}`:`går kortet till slasken och du får ${nx}`}.</p><button class="pri" data-a="ut">Ta kortet</button><button data-a="un">${ask?'Tacka nej':'Tacka nej – du får nästa kort'}</button>`}
  if(u.stage==='offer')return upY?`<p>Markera kortet du slänger i stället för ${esc(cn(u.card))}.</p><button class="pri" data-a="uy" ${sel.size==1?'':'disabled'}>Släng valt kort</button><button data-a="ub">Ångra</button>`
   :`<p>${esc(nm(u.owner))} tackade nej. <span class="hint">Vill du ta kortet?</span>${u.used.includes(s.you)?'':' Då förbrukar du din tur.'}</p><button class="pri" data-a="uj">Ja</button><button data-a="un">Nej</button>`;
  let b=`<p>${esc(nm(s.starter))} körde 1 upp. ${dk>0?`Markera ett kort och kör 1 upp, ${dk>=7?'byt alla 7 ':''}eller behåll.${dk<7?` Leken har ${dk} kort kvar.`:''}`:'Leken är slut: markera ett kort och gräv i slasken (1 slumpat kort), eller behåll.'}</p>`;

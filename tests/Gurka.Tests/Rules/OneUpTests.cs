@@ -4,8 +4,9 @@ using static Gurka.Tests.Cards;
 namespace Gurka.Tests.Rules;
 
 // 1 upp: startspelaren bytte exakt ett kort. I tur och ordning lägger den som har tur sitt markerade kort i slasken och vänder upp översta kortet.
-// Tar spelaren det går turen vidare. Tackar spelaren nej får övriga frågan åt vänster (även de som haft sin tur). Tar någon kortet slänger den
-// ett eget kort och förbrukar sin tur om den inte haft den. Sedan får den som tackade nej nästa kort ur leken (dolt).
+// Tar spelaren det går turen vidare. Tackar spelaren nej får BARA de som inte haft sin tur frågan åt vänster (aldrig startspelaren eller den
+// som förbrukat sin tur). Tar någon kortet slänger den ett eget kort och förbrukar sin tur. Finns ingen att fråga går kortet direkt till slasken.
+// Sedan får den som tackade nej nästa kort ur leken (dolt).
 public class OneUpTests
 {
     // plats 0 börjar (ess), inga Zlatan-kandidater
@@ -104,7 +105,7 @@ public class OneUpTests
     }
 
     [Fact]
-    public void Tacka_nej_och_en_spelare_som_redan_haft_sin_tur_tar_kortet()
+    public void Den_som_redan_haft_sin_tur_tillfrågas_inte()
     {
         var t = Start(3, "Ah 8s 9s");
         Ok(t, t.G.UpTake(0, true, 0));
@@ -114,13 +115,85 @@ public class OneUpTests
         Assert.Equal(H("2k 2r"), t.G.Discards);
         Ok(t, t.G.UpTake(1, false, 0));
         Assert.Equal(2, t.G.UpAsk);
-        Ok(t, t.G.UpTake(2, false, 0));
-        Assert.Equal(0, t.G.UpAsk); // varvet fortsätter till den som redan haft sin tur
-        Ok(t, t.G.UpTake(0, true, 0)); // slänger Ah
-        Assert.Equal(H("8s 3k 4k 5k 6k 7k As"), t.Hand(0));
+        Ok(t, t.G.UpTake(2, false, 0)); // startspelaren (plats 0) har haft sin tur och tillfrågas inte
+        Assert.Contains("Ingen tog kortet.", t.G.Notes);
+        Assert.Equal(H("Ah 3k 4k 5k 6k 7k As"), t.Hand(0));
         Assert.Equal(H("9s 3r 4r 5r 6r 7r Kr"), t.Hand(1));
-        Assert.Equal(H("2k 2r Ah"), t.G.Discards);
+        Assert.Equal(H("2k 2r 8s"), t.G.Discards);
         AssertPick(t, 2); // plats 2 tackade nej men har kvar sin egen tur
+    }
+
+    [Fact]
+    public void Fyra_spelare_bara_de_utan_tur_tillfrågas()
+    {
+        // A (0) start, B, C, D: A nej -> B, C, D. B nej -> C, D. C nej -> D. D nej -> ingen.
+        var t = Start(4, "Ah Kh 8k 9k Tk Jk Qk Kk"); // uppvänt/nästa: A Ah/Kh, B 8k/9k, C Tk/Jk, D Qk/Kk
+        Ok(t, t.G.UpTake(0, false, 0));
+        foreach (var s in new[] { 1, 2, 3 }) { Assert.Equal(s, t.G.UpAsk); Ok(t, t.G.UpTake(s, false, 0)); }
+        AssertPick(t, 1);
+        Ok(t, t.G.UpPick(1, 0, false));
+        Ok(t, t.G.UpTake(1, false, 0));
+        foreach (var s in new[] { 2, 3 }) { Assert.Equal(s, t.G.UpAsk); Ok(t, t.G.UpTake(s, false, 0)); }
+        AssertPick(t, 2);
+        Ok(t, t.G.UpPick(2, 0, false));
+        Ok(t, t.G.UpTake(2, false, 0));
+        Assert.Equal(3, t.G.UpAsk);
+        Ok(t, t.G.UpTake(3, false, 0));
+        AssertPick(t, 3);
+        Ok(t, t.G.UpPick(3, 0, false));
+        var up = t.G.UpCard!;
+        Assert.Equal(C("Qk"), up);
+        Ok(t, t.G.UpTake(3, false, 0)); // ingen att fråga: inget offer-steg
+        Assert.Contains("Ingen kunde ta kortet.", t.G.Notes);
+        Assert.Contains(up, t.G.Discards);
+        Assert.Equal(C("Kk"), t.Hand(3)[0]); // nästa kort, dolt
+        AssertPlay(t, 0);
+    }
+
+    [Fact]
+    public void Den_som_förbrukat_sin_tur_genom_att_ta_tillfrågas_inte()
+    {
+        var t = Start(4, "Ah Kh 8k 9k Tk Jk");
+        Ok(t, t.G.UpTake(0, false, 0));
+        Ok(t, t.G.UpTake(1, true, 0)); // B tar och förbrukar sin tur
+        AssertPick(t, 2);
+        Ok(t, t.G.UpPick(2, 0, false));
+        Ok(t, t.G.UpTake(2, false, 0));
+        Assert.Equal(3, t.G.UpAsk); // inte B
+        Ok(t, t.G.UpTake(3, false, 0));
+        Assert.Contains("Ingen tog kortet.", t.G.Notes);
+        AssertPick(t, 3);
+        Ok(t, t.G.UpPick(3, 0, false));
+        Ok(t, t.G.UpTake(3, false, 0)); // B har tagit, A och C har haft sin tur
+        Assert.Contains("Ingen kunde ta kortet.", t.G.Notes);
+        AssertPlay(t, 0);
+    }
+
+    [Fact]
+    public void Två_spelare_andra_spelaren_som_ägare_tackar_nej_utan_fråga()
+    {
+        var t = Start(2, "Ah 8s 9s");
+        Ok(t, t.G.UpTake(0, true, 0));
+        Ok(t, t.G.UpPick(1, 0, false));
+        Ok(t, t.G.UpTake(1, false, 0)); // startspelaren tillfrågas aldrig
+        Assert.Contains("P1 tackar nej.", t.G.Notes);
+        Assert.Contains("Ingen kunde ta kortet.", t.G.Notes);
+        Assert.Contains(C("8s"), t.G.Discards);
+        Assert.Equal(C("9s"), t.Hand(1)[0]);
+        AssertPlay(t, 0);
+    }
+
+    [Fact]
+    public void Tre_spelare_sista_ägaren_tackar_nej_utan_fråga()
+    {
+        var t = Start(3, "Ah Kh 8k 9k");
+        Ok(t, t.G.UpTake(0, true, 0));
+        Ok(t, t.G.Respond(1, false));
+        Ok(t, t.G.UpPick(2, 0, false));
+        Ok(t, t.G.UpTake(2, false, 0)); // plats 1 behöll men har haft sin tur
+        Assert.Contains("Ingen kunde ta kortet.", t.G.Notes);
+        Assert.Equal(C("8k"), t.Hand(2)[0]); // Kh vändes upp och gick till slasken
+        AssertPlay(t, 0);
     }
 
     [Fact]
@@ -367,13 +440,37 @@ public class OneUpTests
         Assert.Equal(t.G.UpCard, Assert.Single(t.G.Deck));
         var up = t.G.UpCard!;
         Ok(t, t.G.UpTake(2, false, 0));
-        foreach (var s in new[] { 3, 0, 1 }) { Assert.Equal(s, t.G.UpAsk); Ok(t, t.G.UpTake(s, false, 0)); }
+        Assert.Equal(3, t.G.UpAsk); // plats 0 och 1 har haft sin tur
+        Ok(t, t.G.UpTake(3, false, 0));
         var got = t.Hand(2)[0];
         Assert.NotEqual(mark, got);
         Assert.NotEqual(up, got);
         Assert.DoesNotContain(got, t.G.Discards);
         Assert.Contains("P2 får ett kort ur slasken.", t.G.Notes);
         AssertPick(t, 3);
+    }
+
+    [Fact]
+    public void Ett_kort_kvar_och_ingen_att_fråga_ger_ett_slumpat_kort_ur_slasken() { foreach (var seed in Many) IngenAttFråga(seed); }
+
+    static void IngenAttFråga(int seed)
+    {
+        var t = LowDeck(seed);
+        Ok(t, t.G.UpPick(1, 0, false));
+        Ok(t, t.G.UpTake(1, true, 0));
+        Ok(t, t.G.Respond(2, false));
+        var mark = t.Hand(3)[0];
+        Ok(t, t.G.UpPick(3, 0, false)); // sista kortet vänds upp
+        var up = t.G.UpCard!;
+        Ok(t, t.G.UpTake(3, false, 0)); // alla har haft sin tur
+        Assert.Contains("Ingen kunde ta kortet.", t.G.Notes);
+        Assert.Empty(t.G.Deck);
+        var got = t.Hand(3)[0];
+        Assert.NotEqual(mark, got);
+        Assert.NotEqual(up, got);
+        Assert.Contains(up, t.G.Discards);
+        Assert.Contains("P3 får ett kort ur slasken.", t.G.Notes);
+        AssertPlay(t, 0);
     }
 
     // 4 spelare, plats 1–3 kör Zlatan (3 kvar). Plats 0 tar (2), plats 1 tar (1), plats 2 tar (0). Plats 3 har tom lek.
@@ -523,9 +620,8 @@ public class OneUpTests
         Ok(t, t.G.UpPick(2, 0, false));
         Ok(t, t.G.UpTake(2, false, 0));
         Assert.Equal(0, t.G.UpAsk);
-        Ok(t, t.G.UpTake(0, false, 0));
-        Assert.Equal(1, t.G.UpAsk);
-        Ok(t, t.G.UpTake(1, false, 0));
+        Ok(t, t.G.UpTake(0, false, 0)); // startspelaren (plats 1) tillfrågas aldrig
+        Assert.Contains("Ingen tog kortet.", t.G.Notes);
         AssertPick(t, 0);
         Ok(t, t.G.Respond(0, false));
         AssertPlay(t, 1);
