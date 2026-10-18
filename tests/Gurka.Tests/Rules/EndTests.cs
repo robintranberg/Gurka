@@ -1,8 +1,9 @@
 namespace Gurka.Tests.Rules;
 
-// Slutet: när sista sticket är lagt får den med högst kort i sista sticket gurkan (lika => sist lagd),
-// lägst kort vinner. Vinnaren får högsta kortet * 5, gurkan samma som minus.
-// Delar flera spelare den lägsta valören är det oavgjort: ingen vinnare, ingen gurka, inga poäng (användarens beslut).
+// Slutet: när sista sticket är lagt räknas varje spelares summa av korten den la i sista sticket (även sakade).
+// Högst summa får gurkan (lika => sist lagd), lägst summa vinner. Vinnaren får gurkans summa * 5, gurkan samma som minus.
+// Med ett kort är summan kortets valör. Delar flera spelare den lägsta summan är det oavgjort: ingen vinnare, ingen gurka, inga poäng.
+// Fler fall med summor finns i SumTests.
 public class EndTests
 {
     public static readonly string[] Simple = ["3k 3r 3h 3s Qk Qr As", "4k 4r 4h 4s 2k 2r Kr"];
@@ -56,7 +57,7 @@ public class EndTests
         Assert.Equal(0, t.G.Seats[1]!.Score);
     }
 
-    // tre spelare där plats 0 och 2 delar lägsta valören (nior) i sista sticket
+    // tre spelare där plats 0 och 2 delar lägsta summan (9+9 = 18) i sista sticket; plats 1 har 6+K = 19
     static Table ThreeWayDraw()
     {
         var t = Table.Playing("2k 2r 2h 2s 9k 9r As", "3k 3r 3h 3s 6r Kr 5r", "4k 4r 4h 4s 9h 9s 5k");
@@ -73,7 +74,7 @@ public class EndTests
     }
 
     [Fact]
-    public void Tre_spelare_två_delar_lägsta_valören_oavgjort_även_om_tredje_har_högre()
+    public void Tre_spelare_två_delar_lägsta_summan_oavgjort_även_om_tredje_har_högre()
     {
         var t = ThreeWayDraw();
         Assert.Equal("over", t.G.Phase);
@@ -116,7 +117,7 @@ public class EndTests
     }
 
     [Fact]
-    public void Gurkan_avgörs_av_högsta_kortet_även_om_det_sakades_och_tredje_spelaren_får_inga_poäng()
+    public void Gurkan_avgörs_av_summan_och_spelaren_däremellan_får_inga_poäng()
     {
         var t = Table.Playing("2k 2r 2h 2s 9k 9r As", "3k 3r 3h 3s 6r Kr 5r", "4k 4r 4h 4s Th Ts 5k");
         t.Ok(0, "2k 2r 2h 2s");
@@ -132,13 +133,13 @@ public class EndTests
         Assert.True(t.G.Trick[1].Sak);
         t.Ok(2, "Th Ts");
         Assert.Equal("over", t.G.Phase);
-        Assert.Equal(2, t.G.Top);    // tian tog sticket ...
-        Assert.Equal(1, t.G.Gurka);  // ... men kungen är högst
-        Assert.Equal(0, t.G.Winner); // nian är lägst
-        Assert.Equal(13 * 5, t.G.Points);
-        Assert.Equal(65, t.G.Seats[0]!.Score);
-        Assert.Equal(-65, t.G.Seats[1]!.Score);
-        Assert.Equal(0, t.G.Seats[2]!.Score);
+        // summor: plats 0 9+9 = 18, plats 1 6+K = 19 (kungen är högsta kortet), plats 2 T+T = 20
+        Assert.Equal(2, t.G.Gurka);
+        Assert.Equal(0, t.G.Winner);
+        Assert.Equal(20 * 5, t.G.Points);
+        Assert.Equal(100, t.G.Seats[0]!.Score);
+        Assert.Equal(0, t.G.Seats[1]!.Score);
+        Assert.Equal(-100, t.G.Seats[2]!.Score);
     }
 
     [Fact]

@@ -88,12 +88,13 @@ public class Game
     void Finish()
     {
         Phase = "over";
-        var m = Trick.Select((p, i) => (i, seat: p.Seat, mx: p.Cards.Max(c => c.R))).ToList();
-        int lo = m.Min(x => x.mx);
-        if (m.Count(x => x.mx == lo) > 1) { Gurka = Winner = -1; Points = 0; Last = "over"; return; } // flera går ut på samma lägsta valör: oavgjort, inga poäng
-        Gurka =m.OrderByDescending(x => x.mx).ThenByDescending(x => x.i).First().seat; // högst kort (lika => sist spelade)
-        Winner = m.OrderBy(x => x.mx).First().seat;                                      // lägst kort (alltid entydigt här)
-        Points = m.Max(x => x.mx) * 5;                                                   // högsta kortet * 5 till vinnaren
+        // varje spelares summa av korten i sista sticket, även sakade (med ett kort = kortets valör)
+        var m = Trick.Select((p, i) => (i, seat: p.Seat, sum: p.Cards.Sum(c => c.R))).ToList();
+        int lo = m.Min(x => x.sum);
+        if (m.Count(x => x.sum == lo) > 1) { Gurka = Winner = -1; Points = 0; Last = "over"; return; } // flera har samma lägsta summa: oavgjort, inga poäng
+        Gurka = m.OrderByDescending(x => x.sum).ThenByDescending(x => x.i).First().seat; // högst summa (lika => sist spelade)
+        Winner = m.OrderBy(x => x.sum).First().seat;                                      // lägst summa (alltid entydigt här)
+        Points = m.Max(x => x.sum) * 5;                                                   // gurkans summa * 5 till vinnaren
         Seats[Winner]!.Score += Points;
         if (Gurka != Winner) Seats[Gurka]!.Score -= Points; // förloraren får minuspoäng
         Last = "over";

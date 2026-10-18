@@ -170,7 +170,7 @@ public class SeatTests
         foreach (var (s, c) in new[] { (0, "2k 2r 2h 2s"), (1, "3k 3r 3h 3s"), (2, "4k 4r 4h 4s"), (2, "5k"), (0, "As"), (1, "5r"), (0, "9k 9r"), (1, "6r Kr"), (2, "Th Ts") })
             t.Ok(s, c);
         Assert.Equal("over", t.G.Phase);
-        t.G.Leave(2); // varken gurka (1) eller vinnare (0)
+        t.G.Leave(1); // varken gurka (2: T+T = 20) eller vinnare (0: 9+9 = 18)
         Assert.Equal("over", t.G.Phase);
     }
 }

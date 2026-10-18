@@ -31,3 +31,4 @@ Non-issues (do not report): View sends only your own hand; reveal/past/trick are
 As of 2026-10-16 17:27: all B*/F* fixed or accepted. Accepted: HTTP in LAN (B5), B9 (but in practice fixed), X-Frame-Options SAMEORIGIN.
 
 Version handshake (2026-10-17 22:52) VERIFIED clean: /build.js (Program.cs:48) returns only a 12-hex SHA-256 over *.cs/*.csproj, no-store, CSP applies; Build.L is separate from lb.L; Hello.build=Boot is public by design; client chkBuild (app.js:68) uses fixed text via textContent, reload is blocked via sessionStorage. INFO (do not re-report): /build.js is not covered by Flood (HTTP), cheap (stat + hash only on change).
+Sum scoring in Finish (2026-10-18, Game.cs:88-101) VERIFIED clean: Finish only with a full trick (>=2, non-empty plays), Leave aborts first, max 4x14x5=280/deal. Client sumsH/sumTxt/tie: esc(who), numbers only.

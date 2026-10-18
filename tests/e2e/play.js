@@ -25,7 +25,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   while (rounds < ROUNDS && steps < 2000) {
     steps++; let acted = false;
     for (const [i, p] of pages.entries()) {
-      const st = await p.evaluate(() => ({ ph: S.phase, my: myTurn(), zl: S.zlMe, free: S.free, exn: S.exn, deck: S.deck }));
+      const st = await p.evaluate(() => ({ ph: S.phase, my: myTurn(), zl: S.zlMe, free: S.free, exn: S.exn, deck: S.deck, up: S.up }));
       phases.add(st.ph);
       if (st.ph === 'over') continue;
       const clickN = async (n) => { const cs = await p.$$('#hand .card'); for (let k = 0; k < n; k++) await cs[k].click() };
@@ -37,6 +37,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         if (r < .5 && st.deck >= st.exn) { await clickN(st.exn); await p.click('[data-a=w]') }
         else if (r < .7 && await p.$('[data-a=wa]')) await p.click('[data-a=wa]');
         else await p.click('[data-a=wk]'); acted = true
+      }
+      else if (st.ph === 'oneup') { // 1 upp: ta/tacka nej, ja/nej på frågan, och på egen tur 1 upp, alla 7 eller behåll
+        const r = Math.random(), u = st.up;
+        if (u.stage === 'decide') await p.click(r < .5 ? '[data-a=ut]' : '[data-a=un]');
+        else if (u.stage === 'offer') { if (r < .3) { await p.click('[data-a=uj]'); await clickN(1); await p.click('[data-a=uy]') } else await p.click('[data-a=un]') }
+        else if (st.deck === 0) await p.click(r < .5 && await p.$('[data-a=ud]') ? '[data-a=ud]' : '[data-a=rk]');
+        else if (r < .5) { await clickN(1); await p.click('[data-a=up]') }
+        else await p.click(r < .7 && st.deck >= 7 ? '[data-a=ra]' : '[data-a=rk]');
+        acted = true
       }
       else if (st.ph === 'respond') { await p.click(st.deck >= 7 && Math.random() < .3 ? '[data-a=ra]' : '[data-a=rk]'); acted = true }
       else if (st.ph === 'play') {

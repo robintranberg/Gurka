@@ -19,6 +19,7 @@ metadata:
 - 2026-10-17 igen: Build.Init ändrades från (webRoot, contentRoot) till (contentRoot) och wwwroot togs bort ur hashen medan jag skrev BuildTests. Läs alltid om den aktuella koden precis innan första bygget i stället för att lita på kontraktsmeddelandet.
 - Tester för likhet (Boot == Now) säger inget om vilket värde som returneras. Skapa ett läge där värdena skiljer sig (ändra en fil efter Init) innan du asserterar.
 - Statiskt globalt tillstånd (Build) + WebApplicationFactory: lägg alla berörda klasser i [Collection("Server")] så att de inte körs parallellt.
+- Vid regeländring: samma speldata återanvänds i flera filer (EndTests-sticket fanns även i SeatTests). Kör hela sviten innan du rapporterar, inte bara de filer du själv justerat. 2026-10-18 missade jag SeatTests i första filtrerade körningen.
 
 **Why:** Ger fokus nästa gång: var fel brukar gömma sig och vad som orsakar omarbete.
 **How to apply:** Testa avbrott/återställning, View-sekretess och kantfall i lobby/anslutning extra noga; se [[test-patterns]].

@@ -82,8 +82,12 @@ setInterval(()=>document.querySelectorAll('.gr').forEach(e=>{const u=until[e.dat
 // ---------- regler som speglar servern ----------
 const nm=i=>S.seats[i]?S.seats[i].name:'?',who=i=>i===S.you?'Du':nm(i);
 const draw=s=>s.phase==='over'&&(s.winner<0||s.gurka<0); // oavgjort: ingen vinner, poängen står still
-const tie=s=>{const m=s.trick.map(q=>({seat:q.seat,mx:Math.max(...q.cards.map(c=>+c.r))})),lo=Math.min(...m.map(x=>x.mx)),w=m.filter(x=>x.mx===lo).map(x=>esc(who(x.seat))); // samma beräkning som servern
- return w.length>1&&lo<15?`${w.slice(0,-1).join(', ')} och ${w.at(-1)} delade den lägsta valören (${RN(lo)}).`:'Flera delade den lägsta valören i sista sticket.'};
+// sista sticket: varje spelares summa av sina kort (med ett kort = kortets valör). Bara för att förklara – vinnare, gurka och poäng kommer från servern
+const tot=q=>q.cards.reduce((a,c)=>a+(+c.r||0),0),many=s=>s.trick.some(q=>q.cards.length>1);
+const tie=s=>{const m=s.trick.map(q=>({seat:q.seat,v:tot(q)})),lo=Math.min(...m.map(x=>x.v)),w=m.filter(x=>x.v===lo).map(x=>esc(who(x.seat)));
+ return w.length>1&&lo<99?`${w.slice(0,-1).join(', ')} och ${w.at(-1)} delade ${many(s)?`den lägsta summan (${lo})`:`den lägsta valören (${RN(lo)})`}.`:'Flera delade det lägsta i sista sticket.'};
+const sumsH=(s,g,w)=>`<div class="sums">${s.trick.map(q=>`<div class="s${+q.seat}${q.seat===g?' g':q.seat===w?' w':''}"><span>${esc(who(q.seat))}</span><b>${sumTxt(q)}</b></div>`).join('')}</div>`;
+const sumTxt=q=>{const v=q.cards.map(c=>+c.r||0).sort((a,b)=>b-a);return v.length>1?`${v.join(' + ')} = ${tot(q)}`:String(tot(q))}; // t.ex. 14 + 9 + 3 = 26
 const lead=()=>!S.trick.length||S.done,myTurn=()=>S.you>=0&&S.turn===S.you;
 const topRs=()=>{const p=S.trick.find(p=>p.seat===S.top);return p?p.cards.map(c=>c.r).sort((a,b)=>a-b):[0]};
 function legal(ix){ // -1 = ogiltigt, annars antal sakade kort (samma kontroll som PlayCards)
@@ -263,12 +267,12 @@ function confetti(t){if(RM.matches)return;const fx=$('fx'),cs=['#ecc94b','#7fd48
 
 // resultatrutan efter sista sticket
 function showRes(){const s=S;if(s.phase!=='over')return;const me=s.you>=0,w=s.winner,g=s.gurka;
- if(draw(s)){$('result').innerHTML=`<div class="big" aria-hidden="true">🤝</div><h2 id="rt">Oavgjort</h2><p>Ingen vinner – poängen står still.</p><p class="small">${tie(s)}</p>
+ if(draw(s)){$('result').innerHTML=`<div class="big" aria-hidden="true">🤝</div><h2 id="rt">Oavgjort</h2><p>Ingen vinner – poängen står still.</p><p class="small">${tie(s)}</p>${many(s)?sumsH(s,-1,-1):''}
   <div class="row">${me?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:''}<button data-a="hideRes">Visa bordet</button></div>`;
   $('result').hidden=false;$('scrim').hidden=false;resOpen=true;$('result').querySelector('button')?.focus();return}
  const big=w===s.you?'🏆':'🥒',t=w===s.you?'Du vann!':g===s.you?'Du fick gurkan!':`${esc(nm(g))} fick gurkan!`;
- const last=s.trick.flatMap(q=>q.cards).reduce((a,c)=>c.r>a.r?c:a,{r:0,s:0});
- $('result').innerHTML=`<div class="big" aria-hidden="true">${big}</div><h2 id="rt">${t}</h2><p>Högsta kortet i sista sticket var ${last.r?cn(last):'–'}.</p>
+ const last=s.trick.flatMap(q=>q.cards).reduce((a,c)=>c.r>a.r?c:a,{r:0,s:0}),gq=s.trick.find(q=>q.seat===g);
+ $('result').innerHTML=`<div class="big" aria-hidden="true">${big}</div><h2 id="rt">${t}</h2>${many(s)?`<p>Sista sticket räknas på summan av korten.</p>${sumsH(s,g,w)}`+(gq?`<p class="small">Poäng: ${tot(gq)} × 5 = ${+s.points}</p>`:''):`<p>Högsta kortet i sista sticket var ${last.r?cn(last):'–'}.</p>`}
   <div class="rl"><div class="rr w s${w}"><span class="av">${ini(nm(w))}</span><span>🏆 ${esc(who(w))}</span><b>+${+s.points}</b></div><div class="rr g s${g}"><span class="av">${ini(nm(g))}</span><span>🥒 ${esc(who(g))}</span><b>−${+s.points}</b></div></div>
   <div class="row">${me?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:''}<button data-a="hideRes">Visa bordet</button></div>`;
  $('result').hidden=false;$('scrim').hidden=false;resOpen=true;$('result').querySelector('button')?.focus()}

@@ -234,3 +234,9 @@ header{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:0}h1{font
 .plate.sp .av.ud::before{content:"–";color:var(--bad);box-shadow:0 0 0 1.5px var(--bad)}
 /* versionsbanner: servern kör en äldre build än filerna */
 #verBanner{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top));pointer-events:none;transform:translateX(-50%);z-index:21;width:max-content;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:12px;background:#ffe1db;color:#5a130a;font-weight:700;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+/* resultat vid flera kort i sista sticket: summa per spelare */
+.sums{display:grid;gap:4px;margin:6px 0 2px;text-align:left}
+.sums div{display:flex;gap:10px;align-items:baseline;padding:4px 10px;border-radius:10px;background:rgba(0,0,0,.2);border-left:3px solid var(--c)}
+.sums span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sums b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.sums .g b{color:var(--bad)}.sums .w b{color:var(--ok)}
+@media(max-height:559px){.sums{grid-template-columns:1fr 1fr;gap:3px 6px}.sums div{padding:2px 8px;font-size:14px}#result p{margin:4px 0}}
