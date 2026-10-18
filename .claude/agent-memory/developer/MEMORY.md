@@ -1,2 +1,5 @@
 - [Backend-fallgropar](backend-pitfalls.md) — Conn/Gone-sessioner, flera flikar, SignalR-filter-using, bygg/röktest utan låst bin
 - [Teamsamarbete](team-collab.md) — skicka exakt kontrakt till frontend, testbart API + regler till tester, bakåtkompatibelt
+- [Klient: testmiljö](frontend-testing-setup.md) — isolerad server på egen port, puppeteer-core + Edge, fallgropar med rum och viewport
+- [Klient: designbeslut](frontend-design-decisions.md) — dold lekinfo, godkända kortframsidor, CSP-säker markup, http-på-LAN-gränser, tokenlagring
+- [Klient: samarbete](frontend-collaboration.md) — (från tidigare frontend-roll) hubbkontrakt, unload-ordning
