@@ -27,6 +27,7 @@ Om servern redan kör är `bin/` låst. Stoppa den eller bygg till en annan mapp
 | `node ovl.js [utmapp] [tagg]` | Ritar påhittade tillstånd i alla faser och storlekar och mäter om meddelanden, stick och skyltar överlappar. |
 | `node ver.js [gammal-url]` | Versionshandslaget: svarar på `/build.js` med olika värden och kontrollerar omladdning och `#verBanner`. Med en url till en server före handslaget körs även fall F. |
 | `node sum.js [spelare] [omgångar]` | Spelar omgångar via hubben med flerkortsavslut och jämför serverns gurka, vinnare och poäng med summaregeln (summan räknas i skriptet), samt att resultatrutan visar summor bara vid flera kort. |
+| `node host.js` | Startsida utan bord, skapa bord (värd), gå med via länk och kod, bara värden startar, värden lämnar, ny giv, okänd kod, timeout-vyn och tillbaka till startsidan. |
 | `node fix.js` | Ritar View-fixturerna i `fixtures/` i tre storlekar och skriver ut text och knappar. |
 
 Varje skript skriver `Inga fel.` (eller `problem: 0` för `ovl.js`) när allt är bra. Skärmdumpar hamnar i `shots/`.

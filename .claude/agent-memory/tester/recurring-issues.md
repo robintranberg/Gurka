@@ -24,5 +24,8 @@ metadata:
 - Ett nytt testfall som läggs till för att döda en mutant måste först vara grönt mot den riktiga koden. 2026-10-18 dödades mutanten "värd lägsta plats" av ett testfall som själv var trasigt (Start från en tom plats). Kör alltid sviten mot originalet efter att du lagt till fallet, och sedan mutanten.
 - Developer kan lägga till beteende utöver kontraktet (FixHost: värdskapet flyttas vid frånkoppling). Fråga och flagga det i rapporten när det rör en regel som användaren har bestämt.
 
+- Python-redigering av JS via heredoc: 
+ i strängar tolkas av Python och matchar inte. Använd r"""...""" (råsträngar) för JS-källkod. Om assert faller skrivs filen inte, och då kör originalet. 2026-10-18 körde host.js därför mot frontends server på 5077. Kontrollera med grep att redigeringen gick in innan du kör.
+
 **Why:** Ger fokus nästa gång: var fel brukar gömma sig och vad som orsakar omarbete.
 **How to apply:** Testa avbrott/återställning, View-sekretess och kantfall i lobby/anslutning extra noga; se [[test-patterns]].
