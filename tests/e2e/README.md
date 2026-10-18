@@ -23,9 +23,10 @@ Om servern redan kör är `bin/` låst. Stoppa den eller bygg till en annan mapp
 | Kommando | Vad det gör |
 |---|---|
 | `node up.js <2\|4> <take\|other\|allno\|other2\|keep2>` | Spelar 1 upp genom gränssnittet och kontrollerar knappar, att det uppvända kortet syns och att inga handkort läcker. |
-| `node play.js [spelare] [omgångar]` | Spelar hela omgångar med slumpade giltiga drag och loggar fel från sidan och servern. |
+| `node play.js [spelare] [omgångar]` | Spelar hela omgångar med slumpade giltiga drag, inklusive 1 upp, och loggar fel från sidan och servern. |
 | `node ovl.js [utmapp] [tagg]` | Ritar påhittade tillstånd i alla faser och storlekar och mäter om meddelanden, stick och skyltar överlappar. |
 | `node ver.js [gammal-url]` | Versionshandslaget: svarar på `/build.js` med olika värden och kontrollerar omladdning och `#verBanner`. Med en url till en server före handslaget körs även fall F. |
+| `node sum.js [spelare] [omgångar]` | Spelar omgångar via hubben med flerkortsavslut och jämför serverns gurka, vinnare och poäng med summaregeln (summan räknas i skriptet), samt att resultatrutan visar summor bara vid flera kort. |
 | `node fix.js` | Ritar View-fixturerna i `fixtures/` i tre storlekar och skriver ut text och knappar. |
 
 Varje skript skriver `Inga fel.` (eller `problem: 0` för `ovl.js`) när allt är bra. Skärmdumpar hamnar i `shots/`.

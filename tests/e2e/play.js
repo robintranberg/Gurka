@@ -42,7 +42,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         const r = Math.random(), u = st.up;
         if (u.stage === 'decide') await p.click(r < .5 ? '[data-a=ut]' : '[data-a=un]');
         else if (u.stage === 'offer') { if (r < .3) { await p.click('[data-a=uj]'); await clickN(1); await p.click('[data-a=uy]') } else await p.click('[data-a=un]') }
-        else if (st.deck === 0) await p.click(r < .5 && await p.$('[data-a=ud]') ? '[data-a=ud]' : '[data-a=rk]');
+        else if (st.deck === 0) { if (r < .5) { await clickN(1); await p.click('[data-a=ud]') } else await p.click('[data-a=rk]') }
         else if (r < .5) { await clickN(1); await p.click('[data-a=up]') }
         else await p.click(r < .7 && st.deck >= 7 ? '[data-a=ra]' : '[data-a=rk]');
         acted = true
@@ -53,8 +53,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         const pick = await p.evaluate(() => { const L = legalSets(); const m = L[Math.floor(Math.random() * L.length)]; return m });
         if (pick && Math.random() < .85) {
           for (const ix of pick) await p.click(`#hand .card[data-i="${ix}"]`);
-          const ok = await p.evaluate(() => { const b = document.querySelector('[data-a=play]'); return b && !b.disabled });
-          if (ok) await p.click('[data-a=play]'); else { errs.push(`P${i} play-knappen inaktiv för giltigt val ${pick} ` + JSON.stringify(await p.evaluate(()=>({sel:[...sel],lead:lead(),count:S.count,hand:S.hand,top:topRs(),act:document.getElementById("actions").innerText})))); await p.click('[data-a=sak]') }
+          const ok = await p.evaluate(() => { const b = document.querySelector('[data-a=play]'); return b ? !b.disabled : 'sak' }); // utan spela-knapp: bara saka lägsta är möjligt
+          if (ok === 'sak') await p.click('[data-a=sak]'); else if (ok) await p.click('[data-a=play]'); else { errs.push(`P${i} play-knappen inaktiv för giltigt val ${pick} ` + JSON.stringify(await p.evaluate(()=>({sel:[...sel],lead:lead(),count:S.count,hand:S.hand,top:topRs(),act:document.getElementById("actions").innerText})))); await p.click('[data-a=sak]') }
         } else await p.click('[data-a=sak]').catch(async () => { for (const ix of pick) await p.click(`#hand .card[data-i="${ix}"]`); await p.click('[data-a=play]') });
         acted = true
       }
