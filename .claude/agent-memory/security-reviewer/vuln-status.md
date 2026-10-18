@@ -32,3 +32,15 @@ As of 2026-10-16 17:27: all B*/F* fixed or accepted. Accepted: HTTP in LAN (B5),
 
 Version handshake (2026-10-17 22:52) VERIFIED clean: /build.js (Program.cs:48) returns only a 12-hex SHA-256 over *.cs/*.csproj, no-store, CSP applies; Build.L is separate from lb.L; Hello.build=Boot is public by design; client chkBuild (app.js:68) uses fixed text via textContent, reload is blocked via sessionStorage. INFO (do not re-report): /build.js is not covered by Flood (HTTP), cheap (stat + hash only on change).
 Sum scoring in Finish (2026-10-18, Game.cs:88-101) VERIFIED clean: Finish only with a full trick (>=2, non-empty plays), Leave aborts first, max 4x14x5=280/deal. Client sumsH/sumTxt/tie: esc(who), numbers only.
+
+Public deploy on Render (2026-10-18, reported to developer 10:03; threat model changed from LAN to internet):
+- B11 HÖG: real client IP behind Render+Cloudflare (Net.cs Proxies, ForwardLimit 2, private nets). IMPLEMENTED (Net.cs render mode: private+CGNAT+CF ranges, ForwardLimit 4, GURKA__LOGIP); verification at first deploy is PENDING.
+- B12 MEDEL: no Origin check on /hub. VERIFIED fixed 10:13 (Program.cs:51-56, Net.SameOrigin; XFH cannot be set by a foreign browser page: WS has no custom headers, preflight gets 403).
+- B13 MEDEL: global caps (400 conns, 8/key, 200 rooms, 3/key) easy to fill via IPv6 /64 keys; suggested /48 aggregate + idle spectator timeout. OPEN, can wait.
+- B14 LÅG-MEDEL: HSTS. VERIFIED fixed 10:13 (IsHttps -> HSTS without includeSubDomains, wss only).
+- B15 LÅG: 6-char room code guessable with many IPs; suggested 8 chars. OPEN.
+- B16 LÅG/design: default table "" public to the internet (Team Lead decides).
+Frontend: no findings for Render (chat esc/textContent, relative /hub).
+- B17 MEDEL (10:10): trusting the whole CF range + ForwardLimit 4 -> spoofable via CF Workers/WARP (untested suspicion for Workers). VERIFIED 10:15 (Net.Client: internal hops + at most 1 CF hop, strict on garbage) ON CONDITION that the live XFF actually ends with a CF edge IP before 10.x; otherwise the CF hop must be 0. Check during B11 verification (the condition is in DEPLOY.md step 3, verified 10:16).
+- B18 LÅG: XForwardedHost. VERIFIED fixed 10:15 (ForwardedHeaders.None in render mode).
+- Docker (10:08) VERIFIED clean: multi-stage, USER app, no secrets, .dockerignore OK, EnableDiagnostics=0; pdb INFO.

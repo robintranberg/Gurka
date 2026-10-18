@@ -1,0 +1,15 @@
+# bara det som behövs för att publicera servern
+**/bin/
+**/obj/
+tests/
+.git/
+.github/
+.claude/
+.devcontainer/
+.vs/
+.vscode/
+**/node_modules/
+*.md
+Dockerfile
+.dockerignore
+render.yaml

@@ -2,8 +2,9 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.SignalR;
 
 var b = WebApplication.CreateBuilder(args);
-// standard: nås även från andra enheter i nätverket, t.ex. mobilen. --urls och ASPNETCORE_URLS går före.
-if (string.IsNullOrEmpty(b.Configuration["urls"])) b.WebHost.UseUrls("http://0.0.0.0:5000");
+// standard: nås även från andra enheter i nätverket, t.ex. mobilen. --urls och ASPNETCORE_URLS går före, sedan PORT (Render), annars 5000.
+if (string.IsNullOrEmpty(b.Configuration["urls"])) b.WebHost.UseUrls($"http://0.0.0.0:{Net.Port(b.Configuration["PORT"])}");
+b.WebHost.ConfigureKestrel(o => o.AddServerHeader = false); // avslöja inte serverprogramvaran
 b.Services.AddSingleton<Lobby>();
 b.Services.AddHostedService<Sweeper>();
 b.Services.AddSignalR(o =>
@@ -16,25 +17,51 @@ b.Services.AddSignalR(o =>
     o.AddFilter(new Flood());
 });
 b.Services.AddHealthChecks();
-b.Services.Configure<ForwardedHeadersOptions>(Net.Proxies);
+b.Services.Configure<ForwardedHeadersOptions>(o => Net.Proxies(o, b.Configuration.GetValue<bool>("Gurka:Render")));
 var app = b.Build();
 Build.Init(app.Environment.ContentRootPath);
 
 // bakom Codespaces/Cloudflare: klientens IP och https från betrodda proxyer (se Net.cs). Måste ligga först.
 app.Use(Net.Cloudflare(app.Configuration.GetValue<bool>("Gurka:Cloudflare")));
+// diagnos (Gurka:LogIp=true): loggar proxykedjan för de första anslutningarna, för att kontrollera klientens IP i en ny driftmiljö
+if (app.Configuration.GetValue<bool>("Gurka:LogIp"))
+{
+    int n = 0; var log = app.Services.GetRequiredService<ILogger<Program>>();
+    app.Use(async (c, next) =>
+    {
+        bool on = c.Request.Path.StartsWithSegments("/hub/negotiate") && Interlocked.Increment(ref n) <= 10;
+        var (from, raw) = (c.Connection.RemoteIpAddress, c.Request.Headers["X-Forwarded-For"].ToString());
+        var (cf, tc) = (c.Request.Headers["CF-Connecting-IP"].ToString(), c.Request.Headers["True-Client-IP"].ToString());
+        await next(); // Render/UseForwardedHeaders nedan sätter klientens IP
+        if (on) log.LogWarning("Klient-IP {Ip} (anslutning från {From}, X-Forwarded-For: {Raw}, CF-Connecting-IP: {Cf}, True-Client-IP: {Tc}, schema: {Scheme}, värd: {Host})",
+            c.Connection.RemoteIpAddress, from, raw, cf, tc, c.Request.Scheme, c.Request.Host);
+    });
+}
+// Render: klient-IP (högst ett Cloudflare-hopp) och https; annars standard-middleware med privata proxyer
+app.Use(Net.Render(app.Configuration.GetValue<bool>("Gurka:Render")));
 app.UseForwardedHeaders();
 
 // säkerhetsheaders; skript och stil bara från egna filer (klienten sätter stil via CSSOM, inga style-attribut)
 app.Use(async (ctx, next) =>
 {
     var h = ctx.Response.Headers; var host = ctx.Request.Host.Value ?? "";
-    var ws = System.Text.RegularExpressions.Regex.IsMatch(host, @"^[A-Za-z0-9.\-:\[\]]+$") ? $" ws://{host} wss://{host}" : ""; // äldre Safari räknar inte ws till 'self'
+    bool ok = System.Text.RegularExpressions.Regex.IsMatch(host, @"^[A-Za-z0-9.\-:\[\]]+$"), tls = ctx.Request.IsHttps;
+    var ws = !ok ? "" : tls ? $" wss://{host}" : $" ws://{host} wss://{host}"; // äldre Safari räknar inte ws till 'self'
+    if (tls) h["Strict-Transport-Security"] = "max-age=31536000"; // https via betrodd proxy (Render): bara https framöver
     h["X-Content-Type-Options"] = "nosniff";
     h["X-Frame-Options"] = "SAMEORIGIN"; // frontend testar smala bredder i iframe
     h["Referrer-Policy"] = "no-referrer";
     h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     h["Content-Security-Policy"] = $"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'{ws}; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'";
     await next();
+});
+// WebSocket omfattas inte av CORS: en annan sajt får inte öppna anslutningar till hubben i besökarens namn (och fylla taken per IP).
+// Utan Origin (inte en webbläsare) gäller taken per IP som vanligt.
+app.Use((c, next) =>
+{
+    if (c.Request.Path.StartsWithSegments("/hub") && !Net.SameOrigin(c.Request.Headers.Origin.ToString(), c.Request.Host.Value ?? ""))
+    { c.Response.StatusCode = 403; return Task.CompletedTask; }
+    return next();
 });
 app.UseDefaultFiles();
 var types = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
@@ -53,6 +80,7 @@ app.MapGet("/build.js", (HttpContext ctx, ILogger<Program> log) =>
 });
 app.MapHub<GameHub>("/hub");
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/healthz"); // Render: healthCheckPath; svarar bara "Healthy"
 app.Run();
 
 public partial class Program { } // för WebApplicationFactory i integrationstesterna

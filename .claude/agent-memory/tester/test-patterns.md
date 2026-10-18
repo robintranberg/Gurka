@@ -23,6 +23,11 @@ Testmönster som visat sig fungera (2026-10-16):
 - Starta testservrar från PowerShell med Start-Process -PassThru och spara $p.Id. `kill $!` i Git Bash stoppar inte Windows-processen (fel PID), och då lever den gamla servern kvar på porten. Kontrollera Path innan Stop-Process.
 - "Gammal server, ny klient": bygg en äldre commit via `git archive <sha>` i scratchpad och starta med `--webroot <repo>/wwwroot`. Utan det serverar den gamla servern sin gamla klient och testet mäter fel sak.
 - När ett e2e-utfall avviker från min förväntan frågar jag ägaren i stället för att anpassa förväntningen. 2026-10-17 avslöjade det ett felaktigt råd i klienten (banner vid build.js 404), och frontend bekräftade att det var rätt sätt. Lägg också till kombinationsfall (t.ex. storage kastar + 404) som ägarens matris saknar.
+- Portfördelning med developer (2026-10-18): tester använder :10000 för Docker och :5079 för en lokal Kestrel-process, developer använder :10091.
+- Docker: bygg egen image (`docker build -t gurka-tester:local .`) och kör med `--name gurka-tester -p 127.0.0.1:10000:10000 -e PORT=10000 -e GURKA__RENDER=true`. Stoppa och ta bort efteråt. Andra containrar (chroma, ntfy) är användarens, rör dem inte. TestServer visar inte Kestrel-headers som `Server`, så de kontrolleras med curl mot containern.
+- Gränsfall för IP-intervall: kontrollera mot den officiella listan (cloudflare.com/ips-v4) innan du väljer en "precis utanför"-adress. 104.24.0.1 såg utanför ut men låg i 104.24.0.0/14.
+- Headers som beror på anslutnings-IP (HSTS, X-Forwarded-*) testas med `f.Server.SendAsync(c => { c.Connection.RemoteIpAddress = ...; })`. Vanlig HttpClient mot TestServer har ingen RemoteIpAddress. Svarskroppen går inte att spola tillbaka (sätt inte Position). Middleware-kedjan i ForwardedTests ska spegla ordningen i Program.cs (Cloudflare → Render → ForwardedHeaders).
+- Uri normaliserar (Authority i gemener, standardport utelämnas). Testa skiftläge och port från den andra sidan (Host-headern), annars överlever mutanter.
 
 **Why:** Sparar tid nästa gång sviten ska utökas.
 **How to apply:** Lägg nya regeltester i tests/Gurka.Tests/Rules med Table-hjälparen; se även [[recurring-issues]].

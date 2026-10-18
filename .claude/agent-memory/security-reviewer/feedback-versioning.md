@@ -11,3 +11,5 @@ Every review report states which version it covers (time + `git diff --stat`/has
 Frontend gave the same feedback (2026-10-16): the first review covered an old index.html even though a new one was already on disk.
 
 **How to apply:** run `ls -l --time-style=+%H:%M` on the files under review first, re-read the files right before sending findings, and mark in the report which version it covers. See [[review-patterns]].
+
+Also (developer 2026-10-18): messages crossed three times. In every reply, name WHICH of the teammate's messages I'm answering (its summary/heading), in addition to the file timestamps.

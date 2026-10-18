@@ -141,7 +141,44 @@ public class BuildTests : IDisposable
         Assert.Equal(2, log.Warnings);
     }
 
+    [Fact]
+    public void Publicerad_build_utan_källfiler_ger_konstant_Boot_lika_med_Now()
+    {
+        // i en publicerad build (Docker) finns inga *.cs eller *.csproj i content root: hashen av ingenting, och aldrig banner
+        var empty = Path.Combine(root, "publish");
+        Directory.CreateDirectory(Path.Combine(empty, "wwwroot"));
+        File.WriteAllText(Path.Combine(empty, "Gurka.dll"), "x");
+        Build.Init(empty);
+        Assert.Equal("e3b0c44298fc", Build.Boot);
+        Assert.Equal(Build.Boot, Build.Now());
+        File.WriteAllText(Path.Combine(empty, "wwwroot", "app.js"), "ny");
+        File.WriteAllText(Path.Combine(empty, "Gurka.dll"), "ny dll");
+        Assert.Equal(Build.Boot, Build.Now());
+    }
+
+    [Fact]
+    public void Init_på_saknad_mapp_kraschar_inte()
+    {
+        Build.Init(Path.Combine(root, "finns-inte"));
+        Assert.Equal("e3b0c44298fc", Build.Boot);
+        Assert.Equal(Build.Boot, Build.Now());
+    }
+
     // --- via servern ---
+
+    [Theory]
+    [InlineData("/healthz")]
+    [InlineData("/health")]
+    public async Task Hälsokontrollen_svarar_Healthy_och_inget_annat(string path)
+    {
+        await using var f = new WebApplicationFactory<Program>();
+        var r = await f.CreateClient().GetAsync(path);
+        Assert.Equal(200, (int)r.StatusCode);
+        Assert.Equal("text/plain", r.Content.Headers.ContentType!.MediaType);
+        Assert.Equal("Healthy", await r.Content.ReadAsStringAsync());
+        Assert.Equal("nosniff", r.Headers.GetValues("X-Content-Type-Options").Single()); // säkerhetsheaders gäller även här
+        Assert.False(r.Headers.Contains("X-Powered-By"));
+    }
 
     static readonly Regex Js = new("^window\\.GURKA_BUILD=\"([0-9a-f]{12})\";$");
 

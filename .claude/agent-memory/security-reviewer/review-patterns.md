@@ -25,3 +25,4 @@ Check every review for:
 11. For new phases: check CurTurn, View (incl. you=-1), every Clear path (Deal/StartPlay/Leave) and that each loop has a guaranteed stop seat.
 12. Give file:line on EVERY point, INFO included (developer feedback 2026-10-17: makes them faster to act on).
 13. Every report should also say what I did NOT check (e.g. layout/a11y, runtime against a live server, proxy setup) so Team Lead sees where the boundary is (frontend feedback 2026-10-17).
+14. Proxy trust: trusting a whole CDN range (Cloudflare) is NOT the same as trusting the CDN hop. Anyone can originate from CDN IPs (Workers, WARP) and then spoof XFF to the left. Allow at most the expected number of CDN hops.

@@ -1,0 +1,18 @@
+# Render Blueprint: en webbtjänst på gratisnivån, byggd från Dockerfile och deployad vid varje push till main.
+services:
+  - type: web
+    name: gurka
+    runtime: docker
+    plan: free
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      # klientens IP genom Cloudflare + Renders proxy (se Net.cs). Behövs för flodskydd och tak per spelare.
+      - key: GURKA__RENDER
+        value: "true"
+      # sätt till "true" en stund för att logga proxykedjan för de 10 första anslutningarna (kontroll av klient-IP)
+      - key: GURKA__LOGIP
+        value: "false"
