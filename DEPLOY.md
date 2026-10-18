@@ -18,6 +18,12 @@ Gurka kan köras gratis på [Render](https://render.com) som en Docker-tjänst. 
 - **HTTPS ingår.** Render ger https, så installation som app (PWA), skärmlås (Wake Lock) och kopiering av länken fungerar, vilket de inte gör via `http://<IP>` hemma.
 - **Versionsbannern** ("starta om servern") visas inte på Render. Den gäller bara `dotnet run` lokalt.
 
+## Gränser och kända begränsningar
+
+- Servern tar emot högst 1000 samtidiga anslutningar och 1000 bord, högst 8 anslutningar per IP-adress och högst 3 nya bord per IP-adress. Det skyddar mot billigt sabotage, men inte mot en riktig överbelastningsattack. Det klarar gratisnivån ändå inte.
+- Den som inte sitter vid bordet (åskådare) och inte gör något på 10 minuter kopplas ner och får ladda om sidan.
+- **Många spelare bakom samma router**, till exempel en skola eller ett gemensamt wifi, delar IP-adress. Ansluter många därifrån samtidigt, till exempel direkt efter en deploy, kan servern tillfälligt svara "För många anrop – vänta lite." En sida som inte hunnit ansluta till ett bord inom 15 sekunder kopplas då ner. Ladda om sidan efter en stund. Den som redan satt vid bordet har 75 sekunder på sig att komma tillbaka till sin plats.
+
 ## Loggar
 
 Öppna tjänsten i Render och välj **Logs**. Där syns start, varningar och fel. Vanliga anrop loggas inte.

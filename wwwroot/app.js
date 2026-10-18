@@ -41,7 +41,13 @@ let room=(new URLSearchParams(location.search).get('bord')||'').replace(/[^A-Za-
 const call=(m,...a)=>hub.invoke(m,...a).catch(()=>{toast('Kunde inte nå servern');sfx('err')});
 hub.on('state',s=>{if(s.v<=lv&&s.room===S?.room)return;lv=s.v;const p=S&&S.room===s.room?S:null;S=s;
  s.seats.forEach(q=>{if(q&&!q.on)until[q.seat]??=Date.now()+q.grace*1000;else if(q)delete until[q.seat]});render(p)}); // ignorera tillstånd som kommer i fel ordning
-hub.on('err',m=>{if(/annan flik/.test(m)){TK.put(null,tok);tok=null;ss.set('tok',null);wasSeated=false}toast(m);sfx('err');buzz([30,40,30])});
+let lastErr={m:'',t:0};
+hub.on('err',m=>{lastErr={m,t:Date.now()};if(/annan flik/.test(m)){TK.put(null,tok);tok=null;ss.set('tok',null);wasSeated=false}if(/utan aktivitet/.test(m))return asleep(m);
+ if(/För många anrop/.test(m)){const e=lastErr;setTimeout(()=>{if(!e.retry){toast(m);sfx('err')}},150);return} // hello() försöker igen tyst; felet visas bara om det inte görs
+ toast(m);sfx('err');buzz([30,40,30])});
+// servern kopplar ner inaktiva åskådare – då ska vi inte återansluta (det ger bara en ny timeout), bara erbjuda omladdning
+let slept=false;function asleep(m){slept=true;hub.stop().catch(()=>{});setConn('down','Frånkopplad');S=null;clearTable();const lb=$('lobby');lb.hidden=false;
+ put(lb,`<div class="lb"><h2>Frånkopplad</h2><p>${esc(m)}</p><div class="row"><button class="pri" data-a="reload">Ladda om</button></div></div>`)}
 hub.on('chat',(n,t)=>{const l=$('log'),sys=n==='Bordet';l.insertAdjacentHTML('beforeend',`<div class="${sys?'sys':''}"><b>${esc(n)}:</b> ${esc(t)}</div>`);while(l.childElementCount>200)l.firstChild.remove();l.scrollTop=l.scrollHeight;
  if(!sideShown()){unread++;badge();toast(`${n}: ${t}`,'chat')}if(!sys)sfx('chat')});
 // platstoken: servern ger en ny vid varje Hello. Fliken minns sin egen (sessionStorage); localStorage minns tokens för platser
@@ -56,13 +62,15 @@ setInterval(()=>{if(seated()&&document.visibilityState==='visible')TK.put(tok)},
 let gone=false; // pagehide kommer före visibilitychange när fliken stängs – 'r' får inte skrivas över med 'h'
 addEventListener('pagehide',()=>{gone=true;if(seated())TK.put(tok,null,'r')});addEventListener('pageshow',()=>gone=false);
 document.addEventListener('visibilitychange',()=>{if(seated()&&!gone)TK.put(tok,null,document.visibilityState==='hidden'?'h':'v')});
-async function hello(code=room){
- const t=tok||TK.orphan();let r=null;if(code!==room)$('log').innerHTML='';try{r=await hub.invoke('Hello',t,code)}catch{}
- if(!r){room=S?.room??'';history.replaceState(null,'',room?'?bord='+encodeURIComponent(room):location.pathname);return} // servern har redan skickat felet, t.ex. okänd bordskod
+async function hello(code=room,tries=0){
+ const t=tok||TK.orphan();let r=null;if(code!==room)$('log').innerHTML='';const t0=Date.now();try{r=await hub.invoke('Hello',t,code)}catch{}
+ if(!r&&tries<5){await new Promise(z=>setTimeout(z,60)); // felet kan komma strax efter svaret
+  if(lastErr.t>=t0&&/För många anrop/.test(lastErr.m)){lastErr.retry=true;await new Promise(z=>setTimeout(z,700+Math.random()*1500));return hello(code,tries+1)}} // flodskydd när många bakom samma NAT ansluter samtidigt
+ if(!r){room=S?.room??'';history.replaceState(null,'',room?'?bord='+encodeURIComponent(room):location.pathname);if(!S)landing();return false} // servern har redan skickat felet, t.ex. okänd bordskod
  const old=tok;tok=r.token;ss.set('tok',tok);TK.put(r.seat>=0?tok:null,t!==tok?t:old);
  if(r.room!==room){room=r.room;history.replaceState(null,'',room?'?bord='+encodeURIComponent(room):location.pathname)}
  try{hist=JSON.parse(ss.get('hist.'+room)||'[]')}catch{hist=[]}
- if(r.seat>=0&&!wasSeated&&t)toast('Välkommen tillbaka – du har kvar din plats','ok');wasSeated=r.seat>=0;chkBuild(r.build)}
+ if(r.seat>=0&&!wasSeated&&t)toast('Välkommen tillbaka – du har kvar din plats','ok');wasSeated=r.seat>=0;chkBuild(r.build);if(!room)landing();return true}
 // versionshandslag: build.js speglar filerna på disken nu, Hello den build som processen startade med.
 // Olika → ladda om en gång (spärrat i sessionStorage), kvarstår det kör servern gammal kod.
 function chkBuild(b){const mine=window.GURKA_BUILD,bn=$('verBanner'),has=typeof mine==='string',old=()=>{bn.textContent='Servern kör en äldre version – starta om servern.';bn.hidden=false};
@@ -72,15 +80,17 @@ function chkBuild(b){const mine=window.GURKA_BUILD,bn=$('verBanner'),has=typeof 
  const k=b+'/'+(has?mine:'-');let ok=false;try{if(sessionStorage.getItem('gurka-reload')!==k){sessionStorage.setItem('gurka-reload',k);ok=sessionStorage.getItem('gurka-reload')===k}}catch{}
  if(ok)location.reload();else if(has)old()}
 async function online(){setConn('ok','Ansluten');lv=0;await hello()}
-async function connect(){setConn('wait','Ansluter…');try{await hub.start();await online()}catch{setConn('down','Ingen kontakt med servern – försöker igen…');setTimeout(connect,3000)}}
+async function connect(){if(slept)return;setConn('wait','Ansluter…');try{await hub.start();await online()}catch{setConn('down','Ingen kontakt med servern – försöker igen…');setTimeout(connect,3000)}}
 hub.onreconnecting(()=>setConn('wait','Återansluter…'));
 hub.onreconnected(online);
-hub.onclose(()=>{setConn('down','Tappade anslutningen – försöker igen…');setTimeout(connect,2000)});
+hub.onclose(()=>{if(slept)return;setConn('down','Tappade anslutningen – försöker igen…');setTimeout(connect,2000)});
 connect();
 setInterval(()=>document.querySelectorAll('.gr').forEach(e=>{const u=until[e.dataset.s];if(u)e.textContent=Math.max(0,Math.ceil((u-Date.now())/1000))+' s'}),1000);
 
 // ---------- regler som speglar servern ----------
 const nm=i=>S.seats[i]?S.seats[i].name:'?',who=i=>i===S.you?'Du':nm(i);
+const crown='<span class="host" title="Värd – startar spelet">👑<span class="sr"> värd</span></span>';
+const waitHost=(s,nx)=>s.host>=0?`Väntar på att ${esc(nm(s.host))} startar ${nx?'nästa giv':'spelet'}.`:'Väntar på en värd…';
 const draw=s=>s.phase==='over'&&(s.winner<0||s.gurka<0); // oavgjort: ingen vinner, poängen står still
 // sista sticket: varje spelares summa av sina kort (med ett kort = kortets valör). Bara för att förklara – vinnare, gurka och poäng kommer från servern
 const tot=q=>q.cards.reduce((a,c)=>a+(+c.r||0),0),many=s=>s.trick.some(q=>q.cards.length>1);
@@ -128,7 +138,7 @@ function render(p){
  const pl={top:'',left:'',right:'',bottom:''};
  const tb=s.tie||[],u=U();
  s.seats.forEach((q,i)=>{if(!q)return;const rv=s.reveal.find(x=>x.seat===i),me=i===s.you,st=i===s.starter&&inGame;
-  pl[pos[i]]=`<div class="plate s${i} ${s.turn===i&&inGame?'turn':''} ${u&&spent(u,i)?'sp':''} ${me?'you':''} ${q.on===false?'off':''}" data-s="${i}"><span class="av ${u&&u.used.includes(i)?'ud':''}" aria-hidden="true">${ini(q.name)}</span><div class="pi"><div class="pn">${esc(q.name)}${me?' (du)':''}${u&&u.used.includes(i)?`<span class="sr">, ${spent(u,i)?'turen förbrukad':'har haft sin tur'}</span>`:''}</div>${q.on===false?`<div class="pc x" title="Frånkopplad – platsen hålls en stund">⏳ <span class="gr" data-s="${i}">${+q.grace} s</span> <span class="sr">kvar innan platsen släpps</span></div>`:`<div class="pc">${+q.score} p · ${+q.n} kort${st?' · <span class="st" title="Startspelare">★</span>':''}</div>`}</div><div class="backs">${rv?card(rv,'sm in'+(i===s.starter&&!tb.length?' hi':''))+tbk(tb.filter(x=>x.seat===i),i===s.starter):'<span class="back"></span>'.repeat(Math.min(+q.n||0,13))}</div></div>`});
+  pl[pos[i]]=`<div class="plate s${i} ${s.turn===i&&inGame?'turn':''} ${u&&spent(u,i)?'sp':''} ${me?'you':''} ${q.on===false?'off':''}" data-s="${i}"><span class="av ${u&&u.used.includes(i)?'ud':''}" aria-hidden="true">${ini(q.name)}</span><div class="pi"><div class="pn">${i===s.host?crown:''}${esc(q.name)}${me?' (du)':''}${u&&u.used.includes(i)?`<span class="sr">, ${spent(u,i)?'turen förbrukad':'har haft sin tur'}</span>`:''}</div>${q.on===false?`<div class="pc x" title="Frånkopplad – platsen hålls en stund">⏳ <span class="gr" data-s="${i}">${+q.grace} s</span> <span class="sr">kvar innan platsen släpps</span></div>`:`<div class="pc">${+q.score} p · ${+q.n} kort${st?' · <span class="st" title="Startspelare">★</span>':''}</div>`}</div><div class="backs">${rv?card(rv,'sm in'+(i===s.starter&&!tb.length?' hi':''))+tbk(tb.filter(x=>x.seat===i),i===s.starter):'<span class="back"></span>'.repeat(Math.min(+q.n||0,13))}</div></div>`});
  for(const k in pl)if(put($('p-'+k),pl[k]))$('p-'+k).querySelectorAll('.backs').forEach(b=>{const n=b.children.length;[...b.children].forEach((x,k)=>x.style.setProperty('--k',k-(n-1)/2))});
  // sticket
  const tp=s.trick;
@@ -158,24 +168,34 @@ function score(){const s=S;
  put($('score'),'<h2>Poängställning</h2>'+(s.seats.filter(x=>x).sort((a,b)=>b.score-a.score).map(q=>`<div class="sc s${q.seat}"><i class="dot"></i><span>${esc(q.name)}${q.seat===s.you?' (du)':''}</span><b>${+q.score}</b></div>`).join('')||'<p class="hr">Ingen vid bordet ännu.</p>')+
   (hist.length?'<h3>Senaste omgångar</h3>'+hist.slice(-8).reverse().map(x=>`<div class="hr"><i>#${+x.n}</i><span>${x.d?'🤝 Oavgjort – poängen stod still':`🏆 ${esc(x.w)} +${+x.p} · 🥒 ${esc(x.g)} −${+x.p}`}</span></div>`).join(''):''))}
 
+// startsidan: inget bord valt – skapa ett eget eller gå med via kod (det finns inget standardbord)
+function clearTable(){['p-top','p-left','p-right','p-bottom','trick','past','hand','actions'].forEach(i=>put($(i),''));$('me').hidden=true;$('result').hidden=true;resOpen=false;document.body.dataset.phase='home'}
+function landing(){S=null;lv=0;clearTable();$('status').textContent='Skapa ett bord eller gå med via kod';const lb=$('lobby'),first=!lb._h;lb.hidden=false;
+ put(lb,`<div class="lb"><h2>Gurka</h2><p>Kortspelet för 2–4 där ingen vill få gurkan. Skapa ett bord och bjud in de andra med länken eller koden.</p>
+  <form class="join" data-f="create"><input id="nick" maxlength="14" placeholder="Ditt namn" aria-label="Ditt namn" autocomplete="nickname" enterkeyhint="go"><button class="pri">Skapa bord</button></form>
+  <p class="or">eller gå med via kod</p>
+  <form class="join" data-f="room"><input maxlength="8" placeholder="Bordskod" aria-label="Bordskod" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="go"><button>Gå med</button></form>
+  <div class="row"><button data-a="help">Så spelar man</button></div></div>`);
+ const n=$('nick');if(n&&!n.value){n.value=ls.get('name','');if(first&&WIDE.matches)n.focus()}}
+
 // lobbyn: väntrummet innan första given
 function lobby(){const s=S,lb=$('lobby');lb.hidden=s.phase!=='lobby';if(lb.hidden)return;
  const me=s.you>=0,cnt=s.seats.filter(x=>x).length,full=cnt===4;
- const slots=[0,1,2,3].map(i=>{const q=s.seats[i];return q?`<li class="slot s${i} ${i===s.you?'you':''}"><span class="av">${ini(q.name)}</span><span>${esc(q.name)}${i===s.you?' (du)':''}</span></li>`:'<li class="slot empty"><span class="av">+</span><span>Ledig plats</span></li>'}).join('');
+ const slots=[0,1,2,3].map(i=>{const q=s.seats[i];return q?`<li class="slot s${i} ${i===s.you?'you':''}"><span class="av">${ini(q.name)}${i===s.host?crown:''}</span><span>${esc(q.name)}${i===s.you?' (du)':''}</span></li>`:'<li class="slot empty"><span class="av">+</span><span>Ledig plats</span></li>'}).join('');
  let a;
  if(!me)a=full?'<p>Bordet är fullt (4/4). Du kan titta på tills en plats blir ledig.</p>':`<form class="join" data-f="join"><input id="nick" maxlength="14" placeholder="Ditt namn" aria-label="Ditt namn" autocomplete="nickname" enterkeyhint="go"><button class="pri">Sätt dig</button></form>`;
- else a=cnt>1?`<div class="row"><button class="pri" data-a="start">Starta spelet (${cnt} spelare)</button></div>`:'<p>Väntar på fler spelare – minst 2 behövs. Bjud in någon!</p>';
- const first=!lb._h,code=room?`<b class="code">${esc(room)}</b>`:'standardbordet';
+ else a=cnt<2?`<p>Väntar på fler spelare – minst 2 behövs. ${s.host===s.you?'Bjud in någon!':''}</p>`:s.host===s.you?`<div class="row"><button class="pri" data-a="start">Starta spelet (${cnt} spelare)</button></div>`:`<p>${waitHost(s)}</p>`;
+ const first=!lb._h,code=`<b class="code">${esc(room)}</b>`;
  put(lb,`<div class="lb"><h2>Välkommen till bordet</h2><p>Kortspelet för 2–4 där ingen vill få gurkan. Du sitter vid ${code}.</p><ul class="slots" aria-label="Platser">${slots}</ul>${a}<div class="row"><button data-a="help">Så spelar man</button><button data-a="invite">Bjud in</button>${me?'<button class="warn" data-a="leave">Lämna</button>':''}</div>
-  <details class="rooms"><summary>Eget bord</summary><p>Ett eget bord har en kod som bara ni känner till.</p><div class="row"><button data-a="newRoom">Nytt bord</button>${room?'<button data-a="home">Till standardbordet</button>':''}</div>
+  <details class="rooms"><summary>Annat bord</summary><p>Varje bord har en kod som bara ni känner till.</p><div class="row"><button data-a="newRoom">Nytt bord</button><button data-a="home">Till startsidan</button></div>
   <form class="join" data-f="room"><input maxlength="8" placeholder="Bordskod" aria-label="Bordskod" autocapitalize="characters" autocomplete="off" spellcheck="false"><button>Gå till bord</button></form></details>
-  <p class="small">Andra i samma nätverk ansluter via <b>${esc(location.host)}</b>${room?` och bordskoden <b>${esc(room)}</b>`:''}.</p></div>`);
+  <p class="small">Andra ${location.protocol==='https:'?'':'i samma nätverk '}ansluter via <b>${esc(location.host)}</b> och bordskoden <b>${esc(room)}</b>.</p></div>`);
  const n=$('nick');if(n&&!n.value){n.value=ls.get('name','');if(first&&WIDE.matches)n.focus()}}
 
 function acts(){
  const s=S,h=s.hand||[],me=s.you>=0,my=myTurn();let a='';
  if(!me){a=s.phase==='over'?(s.seats.every(x=>x)?'<p>Bordet är fullt (4/4).</p>':`<form class="join" data-f="join"><input id="nick2" maxlength="14" placeholder="Ditt namn" aria-label="Ditt namn" autocomplete="nickname"><button class="pri">Sätt dig</button></form>`):s.phase==='lobby'?'':'<p>Spelet pågår – du tittar på. Du kan sätta dig när omgången är slut.</p>'}
- else if(s.phase==='over')a=`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button><button data-a="showRes">Visa resultat</button>`;
+ else if(s.phase==='over')a=(s.host===s.you?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:`<p>${waitHost(s,1)}</p>`)+`<button data-a="showRes">Visa resultat</button>`;
  else if(s.phase==='zlatan'&&s.zlMe){const ok=s.deck-s.exn>=7;
   a=`<p>${esc(nm(s.starter))} byter ${+s.exn} kort. Du har inget kort över 10 – <span class="hint">Zlatan!</span> Kasta alla och få 7 nya innan bytet?${ok?'':' (Leken räcker inte.)'}</p><button class="pri" data-a="zy" ${ok?'':'disabled'}>Zlatan – 7 nya</button><button data-a="zn">Behåll</button>`}
  else if(s.phase==='zlatan')a=`<p>Väntar på ${+s.zlN>1?+s.zlN+' spelare':'en spelare'} som får välja Zlatan – 7 nya kort innan bytet…</p>`;
@@ -268,13 +288,13 @@ function confetti(t){if(RM.matches)return;const fx=$('fx'),cs=['#ecc94b','#7fd48
 // resultatrutan efter sista sticket
 function showRes(){const s=S;if(s.phase!=='over')return;const me=s.you>=0,w=s.winner,g=s.gurka;
  if(draw(s)){$('result').innerHTML=`<div class="big" aria-hidden="true">🤝</div><h2 id="rt">Oavgjort</h2><p>Ingen vinner – poängen står still.</p><p class="small">${tie(s)}</p>${many(s)?sumsH(s,-1,-1):''}
-  <div class="row">${me?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:''}<button data-a="hideRes">Visa bordet</button></div>`;
+  <div class="row">${me&&s.host===s.you?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:''}<button data-a="hideRes">Visa bordet</button></div>${me&&s.host!==s.you?`<p class="small">${waitHost(s,1)}</p>`:''}`;
   $('result').hidden=false;$('scrim').hidden=false;resOpen=true;$('result').querySelector('button')?.focus();return}
  const big=w===s.you?'🏆':'🥒',t=w===s.you?'Du vann!':g===s.you?'Du fick gurkan!':`${esc(nm(g))} fick gurkan!`;
  const last=s.trick.flatMap(q=>q.cards).reduce((a,c)=>c.r>a.r?c:a,{r:0,s:0}),gq=s.trick.find(q=>q.seat===g);
  $('result').innerHTML=`<div class="big" aria-hidden="true">${big}</div><h2 id="rt">${t}</h2>${many(s)?`<p>Sista sticket räknas på summan av korten.</p>${sumsH(s,g,w)}`+(gq?`<p class="small">Poäng: ${tot(gq)} × 5 = ${+s.points}</p>`:''):`<p>Högsta kortet i sista sticket var ${last.r?cn(last):'–'}.</p>`}
   <div class="rl"><div class="rr w s${w}"><span class="av">${ini(nm(w))}</span><span>🏆 ${esc(who(w))}</span><b>+${+s.points}</b></div><div class="rr g s${g}"><span class="av">${ini(nm(g))}</span><span>🥒 ${esc(who(g))}</span><b>−${+s.points}</b></div></div>
-  <div class="row">${me?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:''}<button data-a="hideRes">Visa bordet</button></div>`;
+  <div class="row">${me&&s.host===s.you?`<button class="pri" data-a="start" ${s.seats.filter(x=>x).length<2?'disabled':''}>Spela igen</button>`:''}<button data-a="hideRes">Visa bordet</button></div>${me&&s.host!==s.you?`<p class="small">${waitHost(s,1)}</p>`:''}`;
  $('result').hidden=false;$('scrim').hidden=false;resOpen=true;$('result').querySelector('button')?.focus()}
 function hideRes(){$('result').hidden=true;resOpen=false;if(!$('side').classList.contains('open'))$('scrim').hidden=true}
 
@@ -291,11 +311,13 @@ const A={
  invite:async()=>{const u=location.origin+'/'+(room?'?bord='+encodeURIComponent(room):'');try{if(navigator.share){await navigator.share({title:'Gurka',text:'Kom och spela Gurka!',url:u});return}await navigator.clipboard.writeText(u);toast('Länken är kopierad: '+u,'ok')}catch(e){if(e?.name!=='AbortError')toast('Dela den här adressen: '+u,'ok')}},
  leave:()=>{if(!confirm(game()?'Lämna bordet? Spelet avbryts för alla.':'Lämna bordet?'))return;hub.invoke('Leave').catch(()=>toast('Kunde inte lämna bordet'));TK.put(null,tok);wasSeated=false;$('help').open&&$('help').close()},
  newRoom:async()=>{if(S&&S.you>=0&&game()&&!confirm('Lämna det pågående spelet och öppna ett nytt bord?'))return;let c=null;try{c=await hub.invoke('NewRoom')}catch{}if(c)await hello(c)}, // vid null har servern redan skickat felet
- home:()=>hello(''),
+ home:()=>{if(S&&S.you>=0&&game()&&!confirm('Lämna det pågående spelet?'))return;hello('')},reload:()=>location.reload(),
 };
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&!b.disabled&&A[b.dataset.a]){A[b.dataset.a](b)}});
 document.addEventListener('submit',e=>{const f=e.target.closest('[data-f="join"]');if(!f)return;e.preventDefault();
  const n=f.querySelector('input').value.trim();ls.set('name',n);call('Join',n)});
+document.addEventListener('submit',async e=>{const f=e.target.closest('[data-f="create"]');if(!f)return;e.preventDefault();const n=f.querySelector('input').value.trim(),b=f.querySelector('button');
+ if(b.disabled)return;b.disabled=true;ls.set('name',n);let c=null;try{c=await hub.invoke('NewRoom')}catch{}if(c&&await hello(c))call('Join',n);b.disabled=false}); // skaparen blir värd när den sätter sig från samma anslutning
 document.addEventListener('submit',e=>{const f=e.target.closest('[data-f="room"]');if(!f)return;e.preventDefault();const c=f.querySelector('input').value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();if(c&&c!==room)hello(c)});
 $('hand').addEventListener('click',e=>{const c=e.target.closest('.card');if(c)pick(+c.dataset.i)});
 $('cin').addEventListener('submit',e=>{e.preventDefault();const v=$('ci').value;if(v.trim()){call('Chat',v);$('ci').value=''}});

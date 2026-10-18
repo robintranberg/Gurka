@@ -240,3 +240,6 @@ header{padding-top:calc(3px + env(safe-area-inset-top));padding-bottom:0}h1{font
 .sums span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sums b{font-variant-numeric:tabular-nums;white-space:nowrap}
 .sums .g b{color:var(--bad)}.sums .w b{color:var(--ok)}
 @media(max-height:559px){.sums{grid-template-columns:1fr 1fr;gap:3px 6px}.sums div{padding:2px 8px;font-size:14px}#result p{margin:4px 0}}
+/* startsidan och värden */
+.lb .or{margin:10px 0 8px;font-size:14px;opacity:.75;display:flex;align-items:center;gap:10px}.lb .or::before,.lb .or::after{content:"";flex:1;border-top:1px solid rgba(255,255,255,.15)}
+.host{flex:none;margin-right:3px;font-size:.9em}.av .host{position:absolute;top:-10px;right:-8px;margin:0;font-size:15px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))} .slot .av{overflow:visible} /* i lobbyn: kronan på avataren så att namnet får plats */

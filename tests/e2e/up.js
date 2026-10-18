@@ -1,5 +1,5 @@
 // 1 upp end-to-end via gränssnittet. Arg: N scenario. Scenario: starter=take|pass, svar på frågor (y/n i ordning), val för övriga ägare.
-const { launch, open, BASE, SHOTS: OUT } = require('./lib');
+const { launch, open, ready, BASE, SHOTS: OUT } = require('./lib');
 const N = +process.argv[2] || 2, SC = process.argv[3] || 'take';
 const SCN = {
   take:    { st: 'take', ans: [], own: ['up-pass', 'all7', 'keep'] },            // startspelaren tar; nästa kör 1 upp och tackar nej, alla nej
@@ -15,7 +15,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const br = await launch();
   const errs = [], pages = [], log = [];
   const c0 = await br.createBrowserContext(), q = await c0.newPage(); await open(q, BASE + '/');
-  await q.waitForFunction(() => typeof S !== 'undefined' && S); const ROOM = await q.evaluate(() => hub.invoke('NewRoom')); await c0.close();
+  await ready(q); const ROOM = await q.evaluate(() => hub.invoke('NewRoom')); await c0.close();
   for (let i = 0; i < N; i++) {
     const ctx = await br.createBrowserContext(), p = await ctx.newPage(); const [w, h] = SIZES[i % 4];
     await p.setViewport({ width: w, height: h });

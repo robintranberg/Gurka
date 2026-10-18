@@ -1,8 +1,8 @@
 // Spelar omgångar via hubben (gynnar flerkortsutspel) och jämför serverns gurka/vinnare/poäng och resultatrutan med summaregeln. Arg: [spelare] [rundor]
-const {launch,open,BASE:B,SHOTS}=require('./lib');
+const {launch,open,ready,BASE:B,SHOTS}=require('./lib');
 const N=+process.argv[2]||2,ROUNDS=+process.argv[3]||8,sleep=ms=>new Promise(r=>setTimeout(r,ms)),SH=SHOTS+'/';
 (async()=>{const br=await launch();const P=[],errs=[];
-const c0=await br.createBrowserContext(),q=await c0.newPage();await open(q,B+'/');await q.waitForFunction(()=>typeof S!=='undefined'&&S);const ROOM=await q.evaluate(()=>hub.invoke('NewRoom'));await c0.close();
+const c0=await br.createBrowserContext(),q=await c0.newPage();await open(q,B+'/');await ready(q);const ROOM=await q.evaluate(()=>hub.invoke('NewRoom'));await c0.close();
 for(let i=0;i<N;i++){const p=await(await br.createBrowserContext()).newPage();await p.setViewport({width:[360,844,1440,390][i],height:[640,390,900,844][i]});p.on('pageerror',e=>errs.push(e.message));
  await open(p,`${B}/?bord=${ROOM}`);await p.waitForSelector('#nick');await p.type('#nick','S'+i);await p.click('#lobby .join button');await sleep(300);await p.evaluate(()=>hub.on('err',m=>(window.__e||=[]).push(m)));P.push(p)}
 await P[0].evaluate(()=>hub.invoke('Start'));let done=0,multi=0;

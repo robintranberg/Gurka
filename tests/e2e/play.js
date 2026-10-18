@@ -1,12 +1,12 @@
 // Spelar hela omgångar med N klienter via gränssnittet (klick på kort och knappar) och loggar fel.
-const { launch, open, BASE, SHOTS } = require('./lib');
+const { launch, open, ready, BASE, SHOTS } = require('./lib');
 const N = +process.argv[2] || 2, ROUNDS = +process.argv[3] || 1;
 let ROOM = process.env.ROOM || '';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 (async () => {
   const br = await launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
   const pages = [], errs = [];
-  if (!ROOM) { const c = await br.createBrowserContext(), q = await c.newPage(); await open(q, BASE + '/'); await q.waitForFunction(() => typeof S !== 'undefined' && S); ROOM = await q.evaluate(() => hub.invoke('NewRoom')); await c.close(); console.log('Bord', ROOM) }
+  if (!ROOM) { const c = await br.createBrowserContext(), q = await c.newPage(); await open(q, BASE + '/'); await ready(q); ROOM = await q.evaluate(() => hub.invoke('NewRoom')); await c.close(); console.log('Bord', ROOM) }
   for (let i = 0; i < N; i++) {
     const ctx = await br.createBrowserContext(), p = await ctx.newPage();
     await p.setViewport({ width: [390, 844, 1440, 768][i % 4], height: [844, 390, 900, 1024][i % 4] });

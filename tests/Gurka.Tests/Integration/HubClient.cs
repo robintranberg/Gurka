@@ -40,8 +40,7 @@ public sealed class HubClient : IAsyncDisposable
         });
         cfg?.Invoke(b);
         var c = new HubClient(b.Build());
-        await c.Conn.StartAsync();
-        await c.WaitFor(s => true);
+        await c.Conn.StartAsync(); // inget standardbord: tillstånd kommer först efter Hello med en rumskod
         return c;
     }
 

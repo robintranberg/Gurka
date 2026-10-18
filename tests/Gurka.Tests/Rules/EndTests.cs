@@ -159,7 +159,7 @@ public class EndTests
     {
         var t = Table.Playing(Simple);
         PlayToEnd(t);
-        Assert.Null(t.G.Start(1));
+        Assert.Null(t.G.Start(0)); // bara värden (plats 0) startar en ny giv
         Assert.Null(t.G.Exchange(0, null));
         Assert.Null(t.G.Respond(1, false));
         PlayToEnd(t);

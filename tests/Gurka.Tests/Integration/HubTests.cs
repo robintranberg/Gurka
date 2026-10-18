@@ -55,13 +55,17 @@ public class HubTests : IAsyncLifetime
     static string Phase(JsonElement s) => s.GetProperty("phase").GetString()!;
 
     [Fact]
-    public async Task Ny_anslutning_får_tillstånd_i_lobbyn_som_åskådare()
+    public async Task Ny_anslutning_utan_bord_får_inget_tillstånd()
     {
         var c = await Connect();
-        var s = c.Last!.Value;
-        Assert.Equal("lobby", Phase(s));
-        Assert.Equal(-1, Seat(s));
-        Assert.Equal(JsonValueKind.Null, s.GetProperty("hand").ValueKind);
+        await Task.Delay(300);
+        Assert.Null(c.Last);
+        var h = await c.Conn.InvokeAsync<JsonElement>("Hello", null, "");
+        Assert.Equal("", h.GetProperty("room").GetString());
+        Assert.Equal(-1, h.GetProperty("seat").GetInt32());
+        Assert.Matches("^[0-9a-f]{32}$", h.GetProperty("token").GetString());
+        await Task.Delay(300);
+        Assert.Null(c.Last);
     }
 
     [Fact]
@@ -84,14 +88,159 @@ public class HubTests : IAsyncLifetime
         Assert.Equal(Lobby.NoRoom, await c.WaitForError());
     }
 
+    static string V6(int a, int b) => $"2001:db8:{a:x}:{b:x}::/64"; // nyckel för ett /64 i /48 nummer a
+
     [Fact]
-    public async Task Standardbordet_finns_alltid()
+    public void Tak_per_48_för_anslutningar()
+    {
+        var lb = Lobby;
+        lock (lb.L)
+        {
+            for (int i = 0; i < Lobby.MaxConnsPerWide; i++) Assert.True(lb.Admit(V6(1, i)), $"anslutning {i}");
+            Assert.False(lb.Admit(V6(1, 999)));   // ett nytt /64 i samma /48 nekas
+            Assert.True(lb.Admit(V6(2, 0)));      // ett annat /48 påverkas inte
+            Assert.True(lb.Admit("203.0.113.1")); // inte heller IPv4
+            lb.Release(V6(1, 3));
+            Assert.True(lb.Admit(V6(1, 999)));    // plats igen när en släpps
+            Assert.False(lb.Admit(V6(1, 1000)));
+        }
+    }
+
+    [Fact]
+    public void Tak_per_IP_gäller_fortfarande_inom_48()
+    {
+        var lb = Lobby;
+        lock (lb.L)
+        {
+            for (int i = 0; i < Lobby.MaxConnsPerIp; i++) Assert.True(lb.Admit(V6(1, 1)));
+            Assert.False(lb.Admit(V6(1, 1)));
+            Assert.True(lb.Admit(V6(1, 2)));
+        }
+    }
+
+    [Fact]
+    public void Tak_per_48_för_bord()
+    {
+        var lb = Lobby;
+        lock (lb.L)
+        {
+            for (int i = 0; i < Lobby.MaxRoomsPerIp; i++) Assert.NotNull(lb.NewRoom(V6(1, i)));
+            Assert.Null(lb.NewRoom(V6(1, 50)));  // nytt /64, samma /48
+            Assert.NotNull(lb.NewRoom(V6(2, 0)));
+            Assert.NotNull(lb.NewRoom("203.0.113.1"));
+            Assert.All(lb.Rooms.Keys, k => Assert.Matches("^[A-HJ-NP-Z2-9]{8}$", k));
+        }
+    }
+
+    [Fact]
+    public async Task Det_finns_inget_standardbord()
     {
         var c = await Connect();
-        var h = await c.Conn.InvokeAsync<JsonElement>("Hello", null, "");
-        Assert.Equal("", h.GetProperty("room").GetString());
+        lock (Lobby.L) Assert.Empty(Lobby.Rooms);
+        await c.Conn.InvokeAsync<JsonElement>("Hello", null, "");
         await c.Conn.InvokeAsync("Join", "Anna");
-        await c.WaitFor(s => Seat(s) == 0);
+        Assert.Equal(NoTable, await c.WaitForError());
+        await c.Conn.InvokeAsync("Start");
+        Assert.Equal(NoTable, await c.WaitForError());
+        await c.Conn.InvokeAsync("Leave");
+        Assert.Equal(NoTable, await c.WaitForError());
+        lock (Lobby.L) Assert.Empty(Lobby.Rooms);
+    }
+
+    const string NoTable = "Inget bord – skapa ett bord eller öppna en inbjudningslänk.";
+
+    [Fact]
+    public async Task Hello_utan_bord_från_sittande_värd_håller_platsen_och_värdskapet_går_vidare()
+    {
+        var (a, tok) = await Player("R1", "Anna");
+        var (b, _) = await Player("R1", "Bert");
+        var h = await a.Conn.InvokeAsync<JsonElement>("Hello", tok, "");
+        Assert.Equal(-1, h.GetProperty("seat").GetInt32());
+        var s = await b.WaitFor(s => s.GetProperty("seats")[0].GetProperty("on").GetBoolean() == false);
+        Assert.Equal("Anna", s.GetProperty("seats")[0].GetProperty("name").GetString()); // platsen finns kvar
+        Assert.Equal(1, s.GetProperty("host").GetInt32()); // B19: frånkopplad värd lämnar värdskapet till nästa anslutna
+        var back = await a.Conn.InvokeAsync<JsonElement>("Hello", tok, await Code("R1"));
+        Assert.Equal(0, back.GetProperty("seat").GetInt32());
+        var s2 = await b.WaitFor(s => s.GetProperty("seats")[0].GetProperty("on").GetBoolean());
+        Assert.Equal(1, s2.GetProperty("host").GetInt32()); // och får det inte tillbaka vid återkomst
+    }
+
+    [Fact]
+    public async Task Tomt_bord_tas_bort_efter_en_stund()
+    {
+        var code = await Code("R1");
+        var t = new HashSet<string>();
+        lock (Lobby.L)
+        {
+            Lobby.Sweep(t);
+            Assert.True(Lobby.Rooms.ContainsKey(code)); // ett nytt bord får NewRoomTtl på sig
+            Lobby.Rooms[code].At = DateTime.UtcNow - Lobby.NewRoomTtl - TimeSpan.FromSeconds(1);
+            Lobby.Sweep(t);
+            Assert.False(Lobby.Rooms.ContainsKey(code));
+        }
+    }
+
+    [Fact]
+    public async Task Skaparen_är_värd_även_om_någon_annan_satte_sig_först()
+    {
+        var creator = await Connect();
+        var code = await creator.Conn.InvokeAsync<string?>("NewRoom");
+        var bo = await Connect();
+        await bo.Conn.InvokeAsync<JsonElement>("Hello", null, code);
+        await bo.Conn.InvokeAsync("Join", "Bo");
+        await bo.WaitFor(s => Seat(s) == 0);
+        await creator.Conn.InvokeAsync<JsonElement>("Hello", null, code);
+        await creator.Conn.InvokeAsync("Join", "Anna");
+        var s = await creator.WaitFor(s => Seat(s) == 1);
+        Assert.Equal(1, s.GetProperty("host").GetInt32());
+        await bo.Conn.InvokeAsync("Start");
+        Assert.Equal("Bara värden kan starta spelet.", await bo.WaitForError());
+        await creator.Conn.InvokeAsync("Start");
+        await bo.WaitFor(s => Phase(s) == "exchange");
+    }
+
+    [Fact]
+    public async Task Värdskapet_går_vidare_när_värden_lämnar_och_kan_inte_tas_tillbaka()
+    {
+        var creator = await Connect();
+        var code = await creator.Conn.InvokeAsync<string?>("NewRoom");
+        await creator.Conn.InvokeAsync<JsonElement>("Hello", null, code);
+        await creator.Conn.InvokeAsync("Join", "Anna");
+        await creator.WaitFor(s => Seat(s) == 0 && s.GetProperty("host").GetInt32() == 0);
+        var bo = await Connect();
+        await bo.Conn.InvokeAsync<JsonElement>("Hello", null, code);
+        await bo.Conn.InvokeAsync("Join", "Bo");
+        await bo.WaitFor(s => Seat(s) == 1);
+        await creator.Conn.InvokeAsync("Leave");
+        await bo.WaitFor(s => s.GetProperty("host").GetInt32() == 1);
+        await creator.Conn.InvokeAsync("Join", "Anna"); // skaparen sätter sig igen: blir inte värd en gång till
+        var s = await creator.WaitFor(s => Seat(s) == 0);
+        Assert.Equal(1, s.GetProperty("host").GetInt32());
+        await creator.Conn.InvokeAsync("Start");
+        Assert.Equal("Bara värden kan starta spelet.", await creator.WaitForError());
+    }
+
+    [Fact]
+    public async Task Åskådare_kopplas_ner_efter_tio_minuter_utan_aktivitet_men_inte_sittande()
+    {
+        var (a, _) = await Player("R1", "Anna");
+        var spec = await Connect();
+        await Hello(spec, null, "R1");
+        await spec.WaitFor(s => s.GetProperty("room").GetString() == codes["R1"]);
+        string specId, aId;
+        lock (Lobby.L)
+        {
+            var r = Lobby.Rooms[codes["R1"]];
+            aId = r.G.Seats[0]!.Conn!;
+            specId = r.Conns.Single(c => c != aId);
+            foreach (var id in new[] { specId, aId }) Lobby.Live[id] = (Lobby.Live[id].ctx, DateTime.UtcNow - Lobby.IdleTtl - TimeSpan.FromSeconds(1));
+        }
+        Assert.Equal(Lobby.IdleMsg, await spec.WaitForError(8000)); // Sweeper (varannan sekund) skickar felet och kopplar sedan ner
+        for (int i = 0; i < 50 && spec.Conn.State != HubConnectionState.Disconnected; i++) await Task.Delay(100);
+        Assert.Equal(HubConnectionState.Disconnected, spec.Conn.State);
+        lock (Lobby.L) { Assert.False(Lobby.Live.ContainsKey(specId)); Assert.True(Lobby.Live.ContainsKey(aId)); }
+        Assert.Equal(HubConnectionState.Connected, a.Conn.State);
+        Assert.Empty(a.Errors);
     }
 
     [Fact]
@@ -111,14 +260,14 @@ public class HubTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task NewRoom_ger_kort_kod_utan_förväxlingsbara_tecken()
+    public async Task NewRoom_ger_kod_med_åtta_tecken_utan_förväxlingsbara_tecken()
     {
         var c = await Connect();
         var seen = new HashSet<string>();
         for (int i = 0; i < 3; i++) // högst tre bord per IP
         {
             var code = await c.Conn.InvokeAsync<string?>("NewRoom");
-            Assert.Matches("^[A-HJ-NP-Z2-9]{4,8}$", code);
+            Assert.Matches("^[A-HJ-NP-Z2-9]{8}$", code); // B15: 8 tecken, 32^8 koder
             Assert.True(seen.Add(code!));
         }
         Assert.Null(await c.Conn.InvokeAsync<string?>("NewRoom"));
@@ -397,7 +546,7 @@ public class HubTests : IAsyncLifetime
         await a.Conn.InvokeAsync("Join", (string?)null);
         // anslutningen lever fortfarande
         Assert.Equal(HubConnectionState.Connected, a.Conn.State);
-        Assert.Matches("^[A-Z0-9]{4,8}$", await a.Conn.InvokeAsync<string>("NewRoom"));
+        Assert.Matches("^[A-HJ-NP-Z2-9]{8}$", await a.Conn.InvokeAsync<string>("NewRoom"));
     }
 
     [Fact]

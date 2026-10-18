@@ -82,6 +82,14 @@ public static class Net
         return next();
     };
 
+    // bredare nyckel för tak: en IPv6-nyckel (/64) blir dess /48, allt annat är oförändrat
+    public static string Wide(string key)
+    {
+        if (!key.EndsWith("/64") || !IPAddress.TryParse(key[..^3], out var a)) return key;
+        var b = a.GetAddressBytes(); Array.Clear(b, 6, 10);
+        return new IPAddress(b) + "/48";
+    }
+
     // nyckel för tak per IP: IPv4 som den är, IPv6 per /64 (en värd har ofta många adresser i samma nät)
     public static string Key(IPAddress? ip)
     {

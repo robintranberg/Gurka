@@ -22,7 +22,7 @@ public class Game
     public string Phase = "lobby"; // lobby, exchange, zlatan, respond, oneup, play, over
     public bool Done, RespFree;
     public long Ver; // versionsnummer så klienten kan ignorera tillstånd som kommer i fel ordning
-    public int Starter, Turn, Count, Top = -1, Gurka = -1, Winner = -1, Points, ExN;
+    public int Starter, Turn, Count, Top = -1, Gurka = -1, Winner = -1, Points, ExN, Host = -1; // Host = värdens plats: bara värden startar en giv
     public List<int> TopRs = new(); // korten som ligger högst i sticket, sorterade stigande – slås kort för kort
     public HashSet<int> Zl = new(); // spelare utan kort över 10 som ännu inte valt Zlatan (7 nya kort före startbytet)
     public int[] ExIdx = Array.Empty<int>(); // korten startspelaren valt att byta, väntar på Zlatan-beslut
@@ -100,7 +100,8 @@ public class Game
         Last = "over";
     }
 
-    public string? Join(string id, string? name)
+    // host: anslutningen skapade bordet och blir värd även om någon annan satte sig först
+    public string? Join(string id, string? name, bool host = false)
     {
         if (string.IsNullOrEmpty(id)) return "Ogiltig session.";
         if (SeatOf(id) >= 0) return null;
@@ -113,6 +114,8 @@ public class Game
             || Seats.Any(p => p != null && p.Name.Equals(n, StringComparison.OrdinalIgnoreCase));
         string nm = b; for (int k = 2; Taken(nm); k++) nm = Clean(b, 11) + " " + k;
         Seats[i] = new Pl { Id = id, Name = nm }; Last = "join";
+        if (Host < 0 || host) Host = i;
+        FixHost();
         return null;
     }
 
@@ -121,6 +124,8 @@ public class Game
     {
         if (!Has(i)) return;
         string n = Seats[i]!.Name + " lämnade bordet."; Seats[i] = null; Last = "leave";
+        if (i == Host) Host = Enumerable.Range(1, 3).Select(k => (i + k) % 4).Where(Has).DefaultIfEmpty(-1).First(); // värdskapet går till nästa plats i ordning
+        FixHost();
         if (!Idle)
         {
             Phase = "lobby"; Trick.Clear(); Past.Clear(); Reveal.Clear(); Ties.Clear(); Done = false; n = n.TrimEnd('.') + " – spelet avbröts.";
@@ -131,9 +136,18 @@ public class Game
         Notes.Add(n);
     }
 
+    // en frånkopplad värd (inom fristen) lämnar värdskapet till nästa anslutna spelare; finns ingen behåller den värdskapet
+    public void FixHost()
+    {
+        if (!Has(Host) || Seats[Host]!.Gone == null) return;
+        var s = Enumerable.Range(1, 3).Select(k => (Host + k) % 4).Where(k => Has(k) && Seats[k]!.Gone == null).DefaultIfEmpty(-1).First();
+        if (s >= 0) Host = s;
+    }
+
     public string? Start(int m)
     {
         if (!Has(m) || !Idle) return "Kan inte starta nu.";
+        if (m != Host) return "Bara värden kan starta spelet.";
         if (Active.Count() < 2) return "Minst 2 spelare krävs.";
         Deal(); return null;
     }
@@ -339,7 +353,7 @@ public class Game
         v = Ver, phase = Phase, you, starter = Starter, count = Count, top = Top, done = Done, free = RespFree, exn = ExN, deck = Deck.Count, slask = Discards.Count, gurka = Gurka, winner = Winner,
         // vem som kan köra Zlatan avslöjar svaga händer: varje klient får bara veta om sig själv, plus hur många som väntar
         zl = Phase == "zlatan" && Zl.Contains(you) ? new List<int> { you } : new List<int>(), zlMe = Phase == "zlatan" && Zl.Contains(you), zlN = Phase == "zlatan" ? Zl.Count : 0,
-        turn = CurTurn, room, last = Last,
+        turn = CurTurn, room, last = Last, host = Host,
         up = Phase != "oneup" ? null : new { owner = UpOwner, stage = UpStage, card = UpCard == null ? null : new { r = UpCard.R, s = UpCard.S }, asking = UpAsk, used = UpUsed.OrderBy(i => i).ToList(),
             mark = you == UpOwner && UpStage != "pick" ? UpMark : -1 },
         seats = Enumerable.Range(0, 4).Select(i => Seats[i] == null ? (object?)null : new { seat = i, name = Seats[i]!.Name, n = Seats[i]!.Hand.Count, score = Seats[i]!.Score, on = Seats[i]!.Gone == null,

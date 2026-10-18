@@ -36,11 +36,15 @@ Sum scoring in Finish (2026-10-18, Game.cs:88-101) VERIFIED clean: Finish only w
 Public deploy on Render (2026-10-18, reported to developer 10:03; threat model changed from LAN to internet):
 - B11 HÖG: real client IP behind Render+Cloudflare (Net.cs Proxies, ForwardLimit 2, private nets). IMPLEMENTED (Net.cs render mode: private+CGNAT+CF ranges, ForwardLimit 4, GURKA__LOGIP); verification at first deploy is PENDING.
 - B12 MEDEL: no Origin check on /hub. VERIFIED fixed 10:13 (Program.cs:51-56, Net.SameOrigin; XFH cannot be set by a foreign browser page: WS has no custom headers, preflight gets 403).
-- B13 MEDEL: global caps (400 conns, 8/key, 200 rooms, 3/key) easy to fill via IPv6 /64 keys; suggested /48 aggregate + idle spectator timeout. OPEN, can wait.
+- B13 MEDEL: global caps (400 conns, 8/key, 200 rooms, 3/key) easy to fill via IPv6 /64 keys; PARTIAL 14:08: /48 cap 16 + 3 rooms/48 + 10 min idle kick for non-seated. Residual: 50 IPv4 fill 400, MaxRooms 200 filled via NewRoom without Hello (60 s TTL); Admit before Hello -> seated players cannot reconnect when full. Raised 14:10: MaxRooms=MaxConns=1000, NewRoomTtl 20 s (VERIFIED). Residual ACCEPTED by Team Lead 2026-10-18.
 - B14 LÅG-MEDEL: HSTS. VERIFIED fixed 10:13 (IsHttps -> HSTS without includeSubDomains, wss only).
-- B15 LÅG: 6-char room code guessable with many IPs; suggested 8 chars. OPEN.
-- B16 LÅG/design: default table "" public to the internet (Team Lead decides).
+- B15 LÅG: room code. VERIFIED fixed 14:08 (8 chars, CanGuess on all codes).
+- B16: default table removed (Hello("") = no table) VERIFIED 14:08.
 Frontend: no findings for Render (chat esc/textContent, relative /hub).
 - B17 MEDEL (10:10): trusting the whole CF range + ForwardLimit 4 -> spoofable via CF Workers/WARP (untested suspicion for Workers). VERIFIED 10:15 (Net.Client: internal hops + at most 1 CF hop, strict on garbage) ON CONDITION that the live XFF actually ends with a CF edge IP before 10.x; otherwise the CF hop must be 0. Check during B11 verification (the condition is in DEPLOY.md step 3, verified 10:16).
 - B18 LÅG: XForwardedHost. VERIFIED fixed 10:15 (ForwardedHeaders.None in render mode).
 - Docker (10:08) VERIFIED clean: multi-stage, USER app, no secrets, .dockerignore OK, EnableDiagnostics=0; pdb INFO.
+Host rule (2026-10-18 14:08) VERIFIED: Start requires m==Host; Creator = conn id (never in View, used once); host passes on Leave. 10 min idle kick never hits seated players.
+- B19 LÅG/design: Team Lead decision: on disconnect (Gone) host passes immediately to the next connected seated player, never back; a connected idle host is ACCEPTED. FixHost VERIFIED 14:13 (Game.cs:140-145, called in Detach/Attach/Join/Leave).
+- B20 LÅG: NAT reconnect storm vs. Hello limit. VERIFIED fixed 14:15 (client retries Hello at most 5 times, 0.7-2.2 s jitter, only on 'För många anrop').
+Client landing/host/asleep (app.js 14:10) VERIFIED clean: esc everywhere, no reconnect loop when slept. 

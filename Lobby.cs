@@ -2,45 +2,51 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.SignalR;
 
-public class Room { public string Code = "", Ip = ""; public DateTime At = DateTime.UtcNow; public Game G = new(); public HashSet<string> Conns = new(); } // Ip = den som skapade bordet
+public class Room { public string Code = "", Ip = "", Creator = ""; public DateTime At = DateTime.UtcNow; public Game G = new(); public HashSet<string> Conns = new(); } // Ip/Creator = IP och anslutning som skapade bordet (Creator blir värd vid Join)
 
 // Alla bord och anslutningar. Allt tillstånd, även frånkopplingar och fristen i Sweeper, låses med L.
 public class Lobby(IHubContext<GameHub> hub)
 {
-    public const int MaxRooms = 200, MaxRoomsPerIp = 3, MaxConnsPerRoom = 40, MaxConns = 400, MaxConnsPerIp = 8;
-    public static readonly TimeSpan NewRoomTtl = TimeSpan.FromSeconds(60), LimboTtl = TimeSpan.FromSeconds(15);
+    public const int MaxRooms = 1000, MaxRoomsPerIp = 3, MaxConnsPerRoom = 40, MaxConns = 1000, MaxConnsPerIp = 8, MaxConnsPerWide = 16; // Wide = IPv6 /48 (Net.Wide)
+    public static readonly TimeSpan NewRoomTtl = TimeSpan.FromSeconds(20), LimboTtl = TimeSpan.FromSeconds(15), IdleTtl = TimeSpan.FromMinutes(10);
+    public const string IdleMsg = "Frånkopplad efter 10 minuter utan aktivitet – ladda om sidan för att fortsätta.";
     public const string NoRoom = "Bordet finns inte.";
     public readonly object L = new();
-    public readonly Dictionary<string, Room> Rooms = new() { [""] = new Room() }; // "" = standardbordet, finns alltid
+    public readonly Dictionary<string, Room> Rooms = new(); // bara bord med kod; "" = inget bord
     public readonly Dictionary<string, (string room, string id)> Conns = new(); // anslutning -> rum och token (ny token för åskådare)
     public readonly Dictionary<string, (DateTime at, HubCallerContext ctx)> Limbo = new(); // anslutningar utan bord; kopplas ner efter LimboTtl
-    public readonly Dictionary<string, int> Ips = new();
+    public readonly Dictionary<string, (HubCallerContext ctx, DateTime seen)> Live = new(); // alla anslutningar och senaste anrop (timeout utan plats)
+    public readonly Dictionary<string, int> Ips = new(), Wides = new();
     readonly Dictionary<string, (double n, DateTime at)> Misses = new(); // misslyckade rumsgissningar per IP
     public readonly List<(string conn, string msg)> Errs = new(); // fel till enskilda anslutningar, skickas i Flush
+    public readonly List<HubCallerContext> Kicks = new(); // kopplas ner i Flush, efter att felen skickats
 
     public static string NewToken() => Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant(); // 128 bitar
     public static bool IsToken(string? t) => t != null && Regex.IsMatch(t, "^[0-9a-f]{32}$");
-    public static string RoomCode(string? r) { var c = Regex.Replace(r ?? "", "[^A-Za-z0-9]", "").ToUpperInvariant(); return c.Length > 8 ? c[..8] : c; } // "" = standardbordet
+    public static string RoomCode(string? r) { var c = Regex.Replace(r ?? "", "[^A-Za-z0-9]", "").ToUpperInvariant(); return c.Length > 8 ? c[..8] : c; } // "" = inget bord
 
     // skapar ett bord med en ny kod (reserverad direkt); null om taket är nått
-    public string? NewRoom(string ip)
+    public string? NewRoom(string ip, string conn = "")
     {
-        const string a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // utan 0/O och 1/I; 32^6 ≈ 1 miljard koder
-        if (Rooms.Count - 1 >= MaxRooms || Rooms.Values.Count(r => r.Ip == ip) >= MaxRoomsPerIp) return null;
+        const string a = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // utan 0/O och 1/I; 32^8 ≈ 1,1 biljon koder
+        if (Rooms.Count >= MaxRooms || Rooms.Values.Count(r => Net.Wide(r.Ip) == Net.Wide(ip)) >= MaxRoomsPerIp) return null;
         while (true)
         {
-            var c = string.Concat(Enumerable.Range(0, 6).Select(_ => a[RandomNumberGenerator.GetInt32(a.Length)]));
-            if (Rooms.TryAdd(c, new Room { Code = c, Ip = ip })) return c;
+            var c = string.Concat(Enumerable.Range(0, 8).Select(_ => a[RandomNumberGenerator.GetInt32(a.Length)]));
+            if (Rooms.TryAdd(c, new Room { Code = c, Ip = ip, Creator = conn })) return c;
         }
     }
 
-    // tak för antal anslutningar totalt och per IP
+    // tak för antal anslutningar totalt, per IP och per IPv6 /48 (en angripare har ofta många /64)
     public bool Admit(string ip)
     {
-        if (Ips.Values.Sum() >= MaxConns || Ips.GetValueOrDefault(ip) >= MaxConnsPerIp) return false;
-        Ips[ip] = Ips.GetValueOrDefault(ip) + 1; return true;
+        var w = Net.Wide(ip);
+        if (Ips.Values.Sum() >= MaxConns || Ips.GetValueOrDefault(ip) >= MaxConnsPerIp || Wides.GetValueOrDefault(w) >= MaxConnsPerWide) return false;
+        Ips[ip] = Ips.GetValueOrDefault(ip) + 1; Wides[w] = Wides.GetValueOrDefault(w) + 1; return true;
     }
-    public void Release(string ip) { if (Ips.TryGetValue(ip, out var n)) { if (n <= 1) Ips.Remove(ip); else Ips[ip] = n - 1; } }
+    public void Release(string ip) { Dec(Ips, ip); Dec(Wides, Net.Wide(ip)); }
+    static void Dec(Dictionary<string, int> d, string k) { if (d.TryGetValue(k, out var n)) { if (n <= 1) d.Remove(k); else d[k] = n - 1; } }
+    public void Touch(string conn) { if (Live.TryGetValue(conn, out var x)) Live[conn] = (x.ctx, DateTime.UtcNow); }
 
     // tokenhink för rumsgissningar per IP: 10 i en skur, sedan en per 10 s
     bool CanGuess(string ip) { var now = DateTime.UtcNow; var (n, at) = Misses.GetValueOrDefault(ip, (10, now)); n = Math.Min(10, n + (now - at).TotalSeconds * 0.1); Misses[ip] = (n, now); return n >= 1; }
@@ -63,9 +69,13 @@ public class Lobby(IHubContext<GameHub> hub)
     public string? Attach(string conn, string? token, string code, HashSet<string> touched, out string tok, string ip = "")
     {
         tok = "";
+        if (code == "") // inget bord: anslutningen lämnar sitt bord som vid en tappad anslutning (platsen hålls under fristen)
+        {
+            Limbo.Remove(conn); Detach(conn, touched); tok = NewToken(); return null;
+        }
         var own = Owner(token);
         bool seated = own is { } q && q.r.Code == code; // en spelare med plats vid bordet släpps alltid in
-        if (code != "" && !seated && !CanGuess(ip)) return NoRoom; // samma svar oavsett orsak, så koder inte kan räknas upp
+        if (!seated && !CanGuess(ip)) return NoRoom; // samma svar oavsett orsak, så koder inte kan räknas upp
         if (!Rooms.TryGetValue(code, out var r)) { Miss(ip); return NoRoom; }
         if (!seated && !r.Conns.Contains(conn) && r.Conns.Count >= MaxConnsPerRoom) return "Bordet har för många åskådare.";
         Limbo.Remove(conn);
@@ -79,7 +89,7 @@ public class Lobby(IHubContext<GameHub> hub)
             // bara en anslutning styr platsen: andra flikar med samma spelare blir åskådare
             foreach (var c in r.Conns.Where(c => c != conn && Conns[c].id == p.Id).ToList()) { Conns[c] = (code, NewToken()); Errs.Add((c, "Du spelar nu i en annan flik eller enhet.")); }
             if (p.Gone != null) r.G.Notes.Add(p.Name + " är tillbaka.");
-            p.Prev = p.Id; p.Id = tok; p.Conn = conn; p.Gone = null;
+            p.Prev = p.Id; p.Id = tok; p.Conn = conn; p.Gone = null; r.G.FixHost(); // en ensam frånkopplad värd blir ansluten igen; annars ingen ändring
         }
         Rooms.TryAdd(code, r); // Detach ovan kan ha städat bort ett tomt bord
         Conns[conn] = (code, tok); r.Conns.Add(conn); touched.Add(code);
@@ -96,14 +106,14 @@ public class Lobby(IHubContext<GameHub> hub)
         if (i >= 0 && r.G.Seats[i]!.Conn == conn)
         {
             var p = r.G.Seats[i]!; p.Conn = null;
-            if (drop) { p.Gone = DateTime.UtcNow; r.G.Notes.Add($"{p.Name} tappade anslutningen – platsen hålls i {(int)Game.Grace.TotalSeconds} s."); }
+            if (drop) { p.Gone = DateTime.UtcNow; r.G.Notes.Add($"{p.Name} tappade anslutningen – platsen hålls i {(int)Game.Grace.TotalSeconds} s."); r.G.FixHost(); }
             else r.G.Leave(i);
         }
         Drop(r);
     }
 
-    // tomma bord tas bort; standardbordet finns alltid och ett nytt bord får en stund på sig att få besökare
-    void Drop(Room r) { if (r.Code != "" && r.Conns.Count == 0 && r.G.Seats.All(p => p == null) && DateTime.UtcNow - r.At > NewRoomTtl) Rooms.Remove(r.Code); }
+    // tomma bord tas bort; ett nytt bord får en stund på sig att få besökare
+    void Drop(Room r) { if (r.Conns.Count == 0 && r.G.Seats.All(p => p == null) && DateTime.UtcNow - r.At > NewRoomTtl) Rooms.Remove(r.Code); }
 
     // släpper platser vars frist gått ut, tar bort tomma bord och kopplar ner anslutningar utan bord
     public void Sweep(HashSet<string> touched)
@@ -115,17 +125,20 @@ public class Lobby(IHubContext<GameHub> hub)
             Drop(r);
         }
         foreach (var (c, x) in Limbo.ToList()) if (now - x.at > LimboTtl) { Limbo.Remove(c); x.ctx.Abort(); }
+        // anslutningar utan plats (åskådare eller utan bord) kopplas ner efter IdleTtl utan anrop; sittande spelare aldrig
+        foreach (var (c, x) in Live.ToList())
+            if (!Limbo.ContainsKey(c) && now - x.seen > IdleTtl && (Find(c) is not { } f || f.seat < 0)) { Live.Remove(c); Errs.Add((c, IdleMsg)); Kicks.Add(x.ctx); }
         foreach (var k in Misses.Where(x => now - x.Value.at > TimeSpan.FromMinutes(5)).Select(x => x.Key).ToList()) Misses.Remove(k);
     }
 
     // skickar fel, bordsmeddelanden och tillstånd till alla vid de berörda borden
     public async Task Flush(IEnumerable<string> codes)
     {
-        var sends = new List<Task>();
+        var sends = new List<Task>(); List<HubCallerContext> kicks;
         lock (L)
         {
             foreach (var (c, m) in Errs) sends.Add(hub.Clients.Client(c).SendAsync("err", m));
-            Errs.Clear();
+            Errs.Clear(); kicks = Kicks.ToList(); Kicks.Clear();
             foreach (var code in codes.Distinct())
             {
                 if (!Rooms.TryGetValue(code, out var r)) continue;
@@ -136,6 +149,7 @@ public class Lobby(IHubContext<GameHub> hub)
             }
         }
         await Task.WhenAll(sends);
+        foreach (var k in kicks) k.Abort();
     }
 }
 
@@ -147,9 +161,9 @@ public class Sweeper(Lobby lb) : BackgroundService
         using var t = new PeriodicTimer(TimeSpan.FromSeconds(2));
         while (await t.WaitForNextTickAsync(ct))
         {
-            var touched = new HashSet<string>();
-            lock (lb.L) lb.Sweep(touched);
-            if (touched.Count > 0) await lb.Flush(touched);
+            var touched = new HashSet<string>(); bool kick;
+            lock (lb.L) { lb.Sweep(touched); kick = lb.Kicks.Count > 0; }
+            if (touched.Count > 0 || kick) await lb.Flush(touched);
         }
     }
 }

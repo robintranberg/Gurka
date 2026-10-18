@@ -23,4 +23,7 @@ async function open(page, url) {
   }
 }
 
-module.exports = { BASE, SHOTS, BROWSER, launch, open };
+// startsidan ('/') har inget bord och därmed inget tillstånd (S är null): vänta på anslutningen i stället
+const ready = page => page.waitForFunction(() => typeof hub !== 'undefined' && hub.state === 'Connected');
+
+module.exports = { BASE, SHOTS, BROWSER, launch, open, ready };

@@ -263,7 +263,7 @@ public class DealTests
         EndTests.PlayToEnd(t);
         Assert.Equal("over", t.G.Phase);
         int s0 = t.G.Seats[0]!.Score, s1 = t.G.Seats[1]!.Score;
-        Assert.Null(t.G.Start(1));
+        Assert.Null(t.G.Start(0)); // plats 0 är värd
         Assert.Equal("exchange", t.G.Phase);
         Assert.Empty(t.G.Trick); Assert.Empty(t.G.Past); Assert.Empty(t.G.Discards);
         Assert.Equal(-1, t.G.Gurka); Assert.Equal(-1, t.G.Winner); Assert.Equal(0, t.G.Points);

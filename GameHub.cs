@@ -11,7 +11,8 @@ public class GameHub(Lobby lb) : Hub
         lock (lb.L)
         {
             var x = lb.Find(Conn);
-            if (x == null) e = "Ingen session – ladda om sidan.";
+            lb.Touch(Conn);
+            if (x == null) e = "Inget bord – skapa ett bord eller öppna en inbjudningslänk.";
             else { var (r, m) = x.Value; e = f(r, m); if (e == null || r.G.Notes.Count > 0) code = r.Code; }
         }
         if (e != null) await Clients.Caller.SendAsync("err", e);
@@ -20,46 +21,46 @@ public class GameHub(Lobby lb) : Hub
 
     string Ip => Context.Items["ip"] as string ?? Flood.Ip(Context);
 
-    // äldre klienter som aldrig anropar Hello hamnar vid standardbordet med en egen token. Är standardbordet fullt väntar
-    // anslutningen utan bord (en spelare med plats kan fortfarande anropa Hello) och kopplas ner efter Lobby.LimboTtl.
+    // en ny anslutning har inget bord: den måste anropa Hello inom Lobby.LimboTtl, annars kopplas den ner
     public override async Task OnConnectedAsync()
     {
-        var t = new HashSet<string>(); bool ok;
+        bool ok;
         lock (lb.L)
         {
             ok = lb.Admit(Flood.Ip(Context));
-            if (ok) { Context.Items["ip"] = Flood.Ip(Context); if (lb.Attach(Conn, null, "", t, out _) != null) lb.Limbo[Conn] = (DateTime.UtcNow, Context); }
+            if (ok) { Context.Items["ip"] = Flood.Ip(Context); lb.Limbo[Conn] = (DateTime.UtcNow, Context); lb.Live[Conn] = (Context, DateTime.UtcNow); }
         }
-        if (!ok) { Context.Abort(); return; } // för många anslutningar totalt eller från samma IP
-        await lb.Flush(t); await base.OnConnectedAsync();
+        if (!ok) { Context.Abort(); return; } // för många anslutningar totalt, från samma IP eller samma IPv6 /48
+        await base.OnConnectedAsync();
     }
 
     public override async Task OnDisconnectedAsync(Exception? ex)
     {
         var t = new HashSet<string>();
-        lock (lb.L) { lb.Detach(Conn, t); if (Context.Items["ip"] is string ip) lb.Release(ip); }
+        lock (lb.L) { lb.Detach(Conn, t); lb.Live.Remove(Conn); if (Context.Items["ip"] is string ip) lb.Release(ip); }
         await lb.Flush(t); await base.OnDisconnectedAsync(ex);
     }
 
-    // klienten skickar sparad token och rumskod (båda valfria; "" = standardbordet). Svarar med { token, room, seat }; token byts
-    // vid varje anrop och skickas bara till den som anropar. Okänd token ger en ny token utan plats. Okänd rumskod ger err och null.
+    // klienten skickar sparad token och rumskod. Svarar med { token, room, seat, build }; token byts vid varje anrop och skickas bara
+    // till den som anropar. Okänd token ger en ny token utan plats. Rumskod "" = inget bord (seat -1). Okänd rumskod ger err och null.
     public async Task<object?> Hello(string? token, string? room)
     {
         var t = new HashSet<string>(); string? e; int seat = -1; string code = Lobby.RoomCode(room), tok;
         lock (lb.L)
         {
+            lb.Touch(Conn);
             e = lb.Attach(Conn, token, code, t, out tok, Ip);
-            if (e == null) seat = lb.Rooms[code].G.SeatOf(tok);
+            if (e == null && code != "") seat = lb.Rooms[code].G.SeatOf(tok);
         }
         await lb.Flush(t);
         if (e != null) { await Clients.Caller.SendAsync("err", e); return null; }
         return new { token = tok, room = code, seat, build = Build.Boot }; // build: identitet när processen startade (se Build i Program.cs)
     }
 
-    // skapar ett bord och returnerar koden (6 tecken); null + err om taket är nått. Anropa sedan Hello(token, kod).
+    // skapar ett bord och returnerar koden (8 tecken); anslutningen blir värd när den sätter sig (Join); null + err om taket är nått. Anropa sedan Hello(token, kod).
     public async Task<string?> NewRoom()
     {
-        string? c; lock (lb.L) c = lb.NewRoom(Ip);
+        string? c; lock (lb.L) { lb.Touch(Conn); c = lb.NewRoom(Ip, Conn); }
         if (c == null) await Clients.Caller.SendAsync("err", "Du kan inte skapa fler bord just nu.");
         return c;
     }
@@ -67,8 +68,9 @@ public class GameHub(Lobby lb) : Hub
     public Task Join(string name) => Run((r, m) =>
     {
         var id = lb.Conns[Conn].id;
-        var e = r.G.Join(id, name);
-        if (e == null) r.G.Seats[r.G.SeatOf(id)]!.Conn = Conn;
+        bool host = r.Creator != "" && r.Creator == Conn;
+        var e = r.G.Join(id, name, host);
+        if (e == null) { r.G.Seats[r.G.SeatOf(id)]!.Conn = Conn; if (host) r.Creator = ""; } // värdskapet från att skapa bordet tas bara en gång
         return e;
     });
 
@@ -88,7 +90,7 @@ public class GameHub(Lobby lb) : Hub
         string n; List<string> ids;
         lock (lb.L)
         {
-            var x = lb.Find(Conn); if (x == null) return;
+            lb.Touch(Conn); var x = lb.Find(Conn); if (x == null) return;
             var (r, i) = x.Value; n = i >= 0 ? r.G.Seats[i]!.Name : "Åskådare"; ids = r.Conns.ToList();
         }
         await Clients.Clients(ids).SendAsync("chat", n, text);

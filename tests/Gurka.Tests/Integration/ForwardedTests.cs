@@ -270,6 +270,17 @@ public class ForwardedTests
     [InlineData("file:///a.b", "a.b", false)]
     public void Samma_ursprung(string? origin, string host, bool want) => Assert.Equal(want, Net.SameOrigin(origin, host));
 
+    // --- B13: tak per IPv6 /48 ---
+
+    [Theory]
+    [InlineData("2001:db8:1:2::/64", "2001:db8:1::/48")]
+    [InlineData("2001:db8:1:ffff::/64", "2001:db8:1::/48")]
+    [InlineData("2001:db8:2:2::/64", "2001:db8:2::/48")]
+    [InlineData("1.2.3.4", "1.2.3.4")] // IPv4 oförändrad
+    [InlineData("::1", "::1")]
+    [InlineData("?", "?")]
+    public void Wide_grupperar_IPv6_per_48(string key, string want) => Assert.Equal(want, Net.Wide(key));
+
     // --- PORT ---
 
     [Theory]
